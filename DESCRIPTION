@@ -1,0 +1,38 @@
+Package: ham
+Title: Healthcare Analysis Methods
+Version: 1.0.0
+Authors@R: 
+    person("Stephen", "Zuniga", , "rms.shiny@gmail.com", role = c("aut", "cre", "cph"),
+           comment = c(ORCID = "0000-0003-1458-3924"))
+Description: Conducts analyses for healthcare program evaluations or intervention 
+    studies. Calculates regression analyses for standard ordinary least squares 
+    (OLS or linear) or logistic models. Performs regression models used for 
+    causal modeling such as differences-in-differences (DID) and interrupted 
+    time series (ITS) models. Provides limited interpretations of model 
+    results and a ranking of variable importance in models. Performs 
+    propensity score models, top-coding of model outcome variables, and 
+    can return new data with the newly formed variables. Also performs Cronbach's 
+    alpha for various scale items (e.g., survey questions). See Github URL for 
+    examples in the README file. For more details on the statistical methods, see 
+    Allen & Yen (1979, ISBN:0-8185-0283-5), 
+    Angrist & Pischke (2009, ISBN:9780691120355), 
+    Harrell (2016, ISBN:978-3-319-19424-0), 
+    Kline (1999, ISBN:9780415211581), and 
+    Linden (2015) <doi:10.1177/1536867X1501500208>.
+License: MIT + file LICENSE
+Encoding: UTF-8
+RoxygenNote: 7.3.2
+Depends: R (>= 2.10)
+LazyData: true
+URL: https://github.com/szuniga07/ham
+BugReports: https://github.com/szuniga07/ham/issues
+Imports: methods
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+NeedsCompilation: no
+Packaged: 2025-08-23 03:28:31 UTC; szuni
+Author: Stephen Zuniga [aut, cre, cph] (ORCID:
+    <https://orcid.org/0000-0003-1458-3924>)
+Maintainer: Stephen Zuniga <rms.shiny@gmail.com>
+Repository: CRAN
+Date/Publication: 2025-08-28 08:50:11 UTC
