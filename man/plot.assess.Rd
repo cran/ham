@@ -4,7 +4,34 @@
 \alias{plot.assess}
 \title{Prediction plot of treatment and control groups for DID and ITS models}
 \usage{
-\method{plot}{assess}(x, y, xlim = NULL, ylim = NULL, add.legend = NULL, ...)
+\method{plot}{assess}(
+  x,
+  y,
+  xlim = NULL,
+  ylim = NULL,
+  main = NULL,
+  lwd = NULL,
+  col = NULL,
+  tcol = NULL,
+  cfact = FALSE,
+  conf.int = FALSE,
+  adj.alpha = NULL,
+  add.means = FALSE,
+  add.legend = NULL,
+  cex = NULL,
+  cex.axis = NULL,
+  cex.lab = NULL,
+  cex.main = NULL,
+  cex.text = NULL,
+  cex.legend = NULL,
+  name = FALSE,
+  coefs = FALSE,
+  round.c = NULL,
+  pos.text = NULL,
+  arrow = FALSE,
+  xshift = NULL,
+  ...
+)
 }
 \arguments{
 \item{x}{assess object. Either difference-in-difference or interrupted time series model with no covariate adjustment.}
@@ -15,8 +42,59 @@
 
 \item{ylim}{specify plot's y-axis limits with a 2 value vector.}
 
+\item{main}{the main title of the plot.}
+
+\item{lwd}{select the line width.}
+
+\item{col}{specify intervention and control group colors in a vector. Defaults to, if nothing selected, c("blue", "red") or "blue" for single-group Interrupted Time Series models.}
+
+\item{tcol}{specify treatment or interruption line color as a single character vector. Defaults to "gray" if nothing selected.}
+
+\item{cfact}{logical TRUE or FALSE that indicates whether a counterfactual line should be included. Defaults to FALSE.}
+
+\item{conf.int}{logical TRUE or FALSE that indicates whether a 95\% confidence interval bands should be included. Defaults to FALSE.}
+
+\item{adj.alpha}{factor modifying the opacity alpha of the confidence interval bands, in the range of 0 to 1. Default is NULL; if conf.int=TRUE, defaults to 0.4.}
+
+\item{add.means}{adds group means by time period based on model data. Default is FALSE}
+
 \item{add.legend}{add a legend by selecting the location as "bottomright", "bottom", "bottomleft",
 "left", "topleft", "top", "topright", "right", "center". No legend if nothing selected.}
+
+\item{cex}{A numerical value giving the amount by which plotting text and symbols should be magnified relative to the default of 1.}
+
+\item{cex.axis}{The magnification to be used for axis annotation relative to the current setting of cex.}
+
+\item{cex.lab}{The magnification to be used for x and y labels relative to the current setting of cex.}
+
+\item{cex.main}{The magnification to be used for main titles relative to the current setting of cex.}
+
+\item{cex.text}{The magnification to be used for the text added into the plot relative to the current setting of 1.}
+
+\item{cex.legend}{The magnification to be used for the legend added into the plot relative to the current setting of 1.}
+
+\item{name}{logical TRUE or FALSE that indicates whether coefficient names
+should be added to the plot. Default is FALSE. It is overridden if coefs = TRUE.}
+
+\item{coefs}{logical TRUE or FALSE that indicates whether coefficient names, values,
+and p-value significance symbols ('+' p<0.10; '\emph{' p<0.05; '\strong{' p<0.01; '}}' p<0.001) should be
+added to the plot. Default is FALSE. coefs = TRUE overrides name = FALSE.}
+
+\item{round.c}{an integer indicating the number of decimal places
+to be used for rounding coefficient values.}
+
+\item{pos.text}{a list of named integer value(s) between 1 to 4 indicating
+the position of the text added into the plot. List name(s) should use coefficient variable names.}
+
+\item{arrow}{logical TRUE or FALSE that indicates whether arrows and
+coefficient names should be added to visualize effects. Default is FALSE.}
+
+\item{xshift}{shifts one or two of some of the overlapping intervention associated arrows
+along the x-axis for a better view. Vector values of at least length 1 or 2 can be positive
+or negative. And xshift should be specified in the order of the coefficients. Only 1 or 2
+of the furthest right, vertical lines for the intervention group is shifted (i.e., not left).
+One line is shifted when there is 1 treatment/interruption period and 2 shifts for 2 periods.
+(e.g., "DID" before "DID.Trend" for DID models with argument did="many").}
 
 \item{...}{additional arguments.}
 }
@@ -27,13 +105,21 @@ plot of partial predictions for treatment and control groups.
 Provides partial prediction plots for treatment and control groups from difference-in-difference (DID)
 and interrupted time series (ITS) models. The graph will produce lines for treatment/intervention and
 control groups to gain understanding through a visual representation of the regression coefficients.
-The treatment/intervention group is represented with a blue line, the control group is represented with
-a red line, and the counterfactual line, when available, is a dashed line.
+By default, the treatment/intervention group is represented with a blue line, the control group is represented with
+a red line, and the counterfactual line, when available, is a dashed line. There are many options to change the plot.
 }
 \examples{
 am2 <- assess(formula= los ~ ., data=hosprog, intervention = "program",
 topcode =NULL, int.time="month", regression="none", treatment= 5,
-interrupt=c(5,9), did="many", its="two", newdata=TRUE, propensity=NULL)
-plot(am2, "DID", add.legend="bottomleft", ylim=c(2, 8))  #DID model
-plot(am2, "ITS", add.legend="top", ylim=c(2, 8))         #ITS model
+interrupt=c(5,9), did="two", its="two", newdata=TRUE, propensity=NULL)
+plot(am2, "DID", add.legend="bottomleft", ylim=c(2, 8))  #DID model, basic plot
+plot(am2, "ITS", add.legend="top", ylim=c(2, 8))         #ITS model, basic plot
+plot(am2, "DID", add.legend="topleft", main="DID study", col=c("dodgerblue","magenta"),
+ylim=c(2, 8), lwd=6, cex=3, cex.axis=2, cex.lab=1.5, cex.main=3, cex.text=2,
+arrow=TRUE, xshift=0.02, coefs=TRUE, round.c=2 )
+plot(am2, "ITS", add.legend="top", xlim=c(-.5, 13), ylim=c(2, 8), main="ITS study",
+col=c("cyan","hotpink"), tcol="springgreen", lwd=7, cex=2, cex.axis=2, cex.lab=2,
+cex.main=3, cex.text=1.2, cex.legend=1.25, name=FALSE, coefs=TRUE, round.c=1,
+pos.text= list("txp5"=3, "post9"=4), arrow=TRUE, xshift=c(.5, 1.5),
+cfact=T, conf.int=TRUE, adj.alpha=0.2)
 }

@@ -13,10 +13,13 @@ linear (OLS) and logistic regression. And ham adds options for
 differences-in-differences models as well as interrupted time-series
 analysis. DID and ITS models offer options for causal modeling. What is
 unique about ham is that it creates datasets with constructed variables
-for DID and ITS models, optionally can add top coded outcome variables,
-propensity scores, and provides some interpretation of model results.
-Additionally, Cronbach’s alpha can be calculated for such things as
-patient surveys.
+for DID and ITS models, optionally it can add top coded outcome
+variables, propensity scores, and provides some interpretation of model
+results. Additionally, Cronbach’s alpha can be calculated for such
+things as patient surveys. As the logo of Dr. Ham suggests, the ham
+package can help illuminate your results.
+
+<img src="man/figures/logo.png" width="20%" style="display: block; margin: auto;" />
 
 ## Installation
 
@@ -115,7 +118,55 @@ printing and plotting options to help review your results.
 Below will cover 3 sections with examples of the different features
 along the way.
 
-## 2. Linear and logistic regression
+## 2. Descriptive and inferential statistics
+
+This example shows group level point estimates and confidence intervals.
+There is also an option to retrieve those estimates over time periods.
+And there are graphing options to help see how the data looks for both.
+
+Results can be returned for each unit of time, as increments such as for
+each 3 months (i.e., quarters) or for rolling averages such as a rolling
+12-month period. Using increments of multiple months or as rolling
+averages can help visualize results when there is high variation over
+time.
+
+### Group level 95% confidence intervals with: 1) 3-month increments, and 2) 6-month rolling averages
+
+``` r
+gr1 <- group(x="program", y="los", z="month", dataf=hosprog, dist="t", increment=3, rolling=6)
+print(gr1$Group.CI)
+#> $adf_alpha
+#>   Group PointEst    Lower    Upper
+#> 1     1 4.247012 4.034842 4.459181
+#> 0     0 4.585967 4.391132 4.780802
+#> 
+#> $adf_numeric
+#>   Group PointEst    Lower    Upper
+#> 0     0 4.585967 4.391132 4.780802
+#> 1     1 4.247012 4.034842 4.459181
+#> 
+#> $adf_all
+#>   PointEst    Lower    Upper
+#> 1 4.428259 4.284543 4.571974
+```
+
+### Graph the results
+
+``` r
+plot(x=gr1, y="group", order="numeric", lwd=4, gcol= "blue", pcol="red", overall=TRUE, oband=TRUE, ocol="gray", tcol="green", tgt=4.5, cex=2, cex.axis=1, cex.lab=1.1, cex.text=2, cex.main=1.25, adj.alpha=.2)
+```
+
+<img src="man/figures/README-plotGroup1-1.png" width="100%" />
+
+### Graph the trend results with averages based on 3 month increments
+
+``` r
+plot(x=gr1, y="time", lwd=4, gcol=c("red", "blue"), gband=TRUE, overall=TRUE, oband=TRUE, ocol="gray", tcol="green", tgt=4, tpline=3, tpcol="yellow", name=TRUE, cex.axis=1, cex.lab=1, cex.text=2, cex.main=1.25, adj.alpha=.3)
+```
+
+<img src="man/figures/README-plotGroup2-1.png" width="100%" />
+
+## 3. Linear and logistic regression
 
 The example dataset has common variables found in program evaluation or
 intervention studies (I’ll refer to both as a ‘study’), there are
@@ -243,21 +294,21 @@ summary(m1$model)
 #> 
 #> Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -6747.9 -2118.0  -602.6  1871.0 10440.7 
+#> -6570.9 -2158.3  -598.1  1962.0 10521.1 
 #> 
 #> Coefficients:
 #>                Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept)    17611.14    1884.32   9.346  < 2e-16 ***
-#> month            456.31      47.25   9.658  < 2e-16 ***
-#> program         5562.45     511.54  10.874  < 2e-16 ***
-#> pscore        -22817.69    3807.79  -5.992 3.28e-09 ***
-#> month:program   -923.09      68.07 -13.561  < 2e-16 ***
+#> (Intercept)    14006.64    1363.65  10.271  < 2e-16 ***
+#> month            424.81      46.57   9.122  < 2e-16 ***
+#> program         5524.74     514.18  10.745  < 2e-16 ***
+#> pscore        -15989.00    2838.57  -5.633 2.55e-08 ***
+#> month:program   -908.68      68.64 -13.239  < 2e-16 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 3150 on 715 degrees of freedom
-#> Multiple R-squared:  0.2404, Adjusted R-squared:  0.2362 
-#> F-statistic: 56.58 on 4 and 715 DF,  p-value: < 2.2e-16
+#> Residual standard error: 3165 on 715 degrees of freedom
+#> Multiple R-squared:  0.233,  Adjusted R-squared:  0.2287 
+#> F-statistic:  54.3 on 4 and 715 DF,  p-value: < 2.2e-16
 ```
 
 Descriptive statistics on newly created variables and the original cost
@@ -266,12 +317,12 @@ as a comparison. top.cost is the topcoded cost variable.
 ``` r
 summary(m1$newdata[, c( "cost","top.cost", "pscore")])
 #>       cost          top.cost         pscore      
-#>  Min.   : 1483   Min.   : 1483   Min.   :0.4226  
-#>  1st Qu.: 6410   1st Qu.: 6410   1st Qu.:0.4649  
-#>  Median : 8639   Median : 8639   Median :0.4900  
-#>  Mean   : 9348   Mean   : 9215   Mean   :0.4889  
-#>  3rd Qu.:11487   3rd Qu.:11487   3rd Qu.:0.5117  
-#>  Max.   :27540   Max.   :17150   Max.   :0.5547
+#>  Min.   : 1483   Min.   : 1483   Min.   :0.3708  
+#>  1st Qu.: 6410   1st Qu.: 6410   1st Qu.:0.4364  
+#>  Median : 8639   Median : 8639   Median :0.4655  
+#>  Mean   : 9348   Mean   : 9215   Mean   :0.4653  
+#>  3rd Qu.:11487   3rd Qu.:11487   3rd Qu.:0.4942  
+#>  Max.   :27540   Max.   :17150   Max.   :0.5609
 ```
 
 ### importance
@@ -282,10 +333,10 @@ which variables explain the outcome the most).
 ``` r
 importance(m1$model)
 #>               X    Chi.Sq d.f.      p.value
-#> 1         month 184.01329    2 1.101596e-40
-#> 2       program 190.33590    2 4.667501e-42
-#> 3        pscore  35.90859    1 2.067946e-09
-#> 4 month:program 183.89852    1 6.827526e-42
+#> 1         month 175.30630    2 8.564878e-39
+#> 2       program 179.92844    2 8.492485e-40
+#> 3        pscore  31.72813    1 1.773352e-08
+#> 4 month:program 175.27159    1 5.222734e-40
 ```
 
 ### Plot importance
@@ -307,7 +358,7 @@ Topcoding can be applied to any model. Propensity scores can be created
 for any model except the single group interrupted time series because
 there is no control group (i.e. intervention group only).
 
-## 3. Differences-in-Differences
+## 4. Differences-in-Differences
 
 DID can be used on binary or continuous outcome variables. Below is an
 example using the hosprog data with length of stay as the outcome and
@@ -335,20 +386,20 @@ summary(dm1$DID)
 #> 
 #> Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -3.6883 -1.1424 -0.2642  0.8139  8.8260 
+#> -3.6247 -1.2003 -0.3145  0.8564  8.8642 
 #> 
 #> Coefficients:
 #>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept)   3.4940     0.1646  21.229  < 2e-16 ***
-#> Post.All      1.6264     0.1989   8.178 1.32e-15 ***
-#> Int.Var       2.0664     0.2343   8.820  < 2e-16 ***
-#> DID          -3.5702     0.2837 -12.583  < 2e-16 ***
+#> (Intercept)   3.4940     0.1650  21.175  < 2e-16 ***
+#> Post.All      1.5629     0.1974   7.917 9.25e-15 ***
+#> Int.Var       2.0664     0.2349   8.797  < 2e-16 ***
+#> DID          -3.5448     0.2849 -12.444  < 2e-16 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 1.773 on 716 degrees of freedom
-#> Multiple R-squared:  0.189,  Adjusted R-squared:  0.1856 
-#> F-statistic: 55.62 on 3 and 716 DF,  p-value: < 2.2e-16
+#> Residual standard error: 1.777 on 716 degrees of freedom
+#> Multiple R-squared:  0.1848, Adjusted R-squared:  0.1814 
+#> F-statistic: 54.11 on 3 and 716 DF,  p-value: < 2.2e-16
 ```
 
 ### Coefficient interpretations
@@ -363,7 +414,7 @@ interpret(dm1)$did
 #> Post.All is the change in the control group's los 
 #> value in the 2nd time period (Time 2). There was a 
 #> significant increase for the control group 
-#> at time 2: 1.626. 
+#> at time 2: 1.563. 
 #> 
 #> Int.Var is the difference between the intervention 
 #> and control group at the baseline period (Time 1). The 
@@ -374,9 +425,9 @@ interpret(dm1)$did
 #> treated group (ATET). This interaction represents the 
 #> difference in the trend differences for the intervention and 
 #> control groups: 
-#> (Int. Time 2 - Int. Time 1) - (Ctl. Time 2 - Ctl. Time 1) = -3.57.  
+#> (Int. Time 2 - Int. Time 1) - (Ctl. Time 2 - Ctl. Time 1) = -3.545.  
 #> In other words, there was a significant decrease in the 
-#> mean los trend by -3.57 for the intervention group. 
+#> mean los trend by -3.545 for the intervention group. 
 #> 
 #> If there are additional variables in the model then the coefficients 
 #> above represent the effects after controlling for the other variables.
@@ -402,20 +453,20 @@ summary(dm2$DID)
 #> 
 #> Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -3.7894 -1.2339 -0.2911  0.8672  9.0804 
+#> -3.7149 -1.2747 -0.3732  0.8838  9.1718 
 #> 
 #> Coefficients:
 #>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept)  4.14486    0.16093  25.756  < 2e-16 ***
-#> Period       0.11963    0.02389   5.008 6.92e-07 ***
-#> DID          0.10064    0.47605   0.211 0.832626    
-#> DID.Trend   -0.19323    0.05590  -3.457 0.000579 ***
+#> (Intercept)  4.17164    0.16049  25.994  < 2e-16 ***
+#> Period       0.10837    0.02342   4.627  4.4e-06 ***
+#> DID          0.14843    0.48630   0.305 0.760284    
+#> DID.Trend   -0.19580    0.05712  -3.428 0.000643 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 1.848 on 716 degrees of freedom
-#> Multiple R-squared:  0.1184, Adjusted R-squared:  0.1148 
-#> F-statistic: 32.07 on 3 and 716 DF,  p-value: < 2.2e-16
+#> Residual standard error: 1.853 on 716 degrees of freedom
+#> Multiple R-squared:  0.1135, Adjusted R-squared:  0.1098 
+#> F-statistic: 30.57 on 3 and 716 DF,  p-value: < 2.2e-16
 ```
 
 ### Get coefficient interpretations
@@ -425,22 +476,21 @@ interpret(dm2)$did
 #> Interpretations: DID 
 #> -------------------- 
 #> The intercept represents the starting point of the control 
-#> group's trend line at the baseline period (Time 1): 4.145. 
+#> group's trend line at the baseline period (Time 1): 4.172. 
 #> 
 #> Period is the change in the control group's los value trend 
 #> line after the baseline period. There was a significant increase 
-#> for the control group after the baseline period: 0.12. 
+#> for the control group after the baseline period: 0.108. 
 #> 
-#> DID estimates the average treatment effect on the treated 
-#> group (ATET). This represents the difference in the mean 
-#> overall level between the intervention and control groups. 
+#> DID estimates the difference in mean overall level between 
+#> the intervention and both the non-intervention period/group. 
 #> In other words, there was a non-significant increase in the 
-#> mean los by 0.101 for the intervention group. 
+#> mean los by 0.148 for the intervention group. 
 #> 
 #> DID.Trend is the difference in the intervention group's 
 #> trend line after the intervention period started (> Time 1). 
 #> The intervention group had a significant decrease in trend 
-#> of the mean los by -0.193 after the intervention started. 
+#> of the mean los by -0.196 after the intervention started. 
 #> 
 #> If there are additional variables in the model then the coefficients 
 #> above represent the effects after controlling for the other variables.
@@ -464,25 +514,25 @@ summary(dm3$DID)
 #> 
 #> Residuals:
 #>      Min       1Q   Median       3Q      Max 
-#> -0.31858 -0.26984 -0.07113 -0.06034  0.93966 
+#> -0.31858 -0.25651 -0.07207 -0.06034  0.93966 
 #> 
 #> Coefficients:
 #>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept)  0.06034    0.03410   1.770   0.0772 .  
-#> Post.All     0.20950    0.04120   5.085 4.71e-07 ***
-#> Int.Var      0.25824    0.04854   5.321 1.39e-07 ***
-#> DID         -0.45695    0.05878  -7.774 2.65e-14 ***
+#> (Intercept)  0.06034    0.03422   1.763   0.0782 .  
+#> Post.All     0.19616    0.04094   4.792 2.01e-06 ***
+#> Int.Var      0.25824    0.04871   5.301 1.53e-07 ***
+#> DID         -0.44267    0.05907  -7.493 1.98e-13 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 0.3672 on 716 degrees of freedom
-#> Multiple R-squared:  0.08261,    Adjusted R-squared:  0.07877 
-#> F-statistic: 21.49 on 3 and 716 DF,  p-value: 2.45e-13
+#> Residual standard error: 0.3686 on 716 degrees of freedom
+#> Multiple R-squared:  0.0759, Adjusted R-squared:  0.07203 
+#> F-statistic:  19.6 on 3 and 716 DF,  p-value: 3.197e-12
 ```
 
 Significant DID effect showing reduced re-admissions
 
-## 4. Interrupted Time Series
+## 5. Interrupted Time Series
 
 ITS lets us look at trends for 1 or 2 groups such as an
 intervention/treatment group without a control group or both a treatment
@@ -490,18 +540,18 @@ and control group. And we have the option of one or more treatment
 periods (or interruptions). This gives us 4 options that can be
 specified using the interrupt and its= arguments.
 
-Below are examples using the hosprog data for the patient survey and
-death within 30-days. The dataset hosp1 will be used for the single
-group examples.
+Below are examples using the hosprog data for the patient length of stay
+(LOS) and death within 30-days. The dataset hosp1 will be used for the
+single group examples.
 
 We begin by looking at a single group with a single
-interruption/treatment period and assessing their survey scores. We
-specify it with: interrupt= 5 and its=“one”.
+interruption/treatment period and assessing their LOS scores. We specify
+it with: interrupt= 5 and its=“one”.
 
 ### ITS model 1
 
 ``` r
-im11 <- assess(formula=los ~ ., data=hosprog, intervention = "program",
+im11 <- assess(formula=los ~ ., data=hosp1, intervention = "program",
                int.time="month", interrupt= 5, its="one")
 ```
 
@@ -515,20 +565,20 @@ summary(im11$ITS)
 #> 
 #> Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -3.4880 -1.4060 -0.3311  1.0471  8.7621 
+#> -3.7673 -1.1321 -0.3755  0.5758  9.1718 
 #> 
 #> Coefficients:
 #>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept)  4.47171    0.32302  13.843   <2e-16 ***
-#> ITS.Time     0.01634    0.11522   0.142    0.887    
-#> post5       -0.41904    0.34926  -1.200    0.231    
-#> txp5         0.05454    0.12139   0.449    0.653    
+#> (Intercept)   6.3299     0.4170  15.178   <2e-16 ***
+#> ITS.Time     -0.2889     0.1442  -2.003   0.0460 *  
+#> post5        -1.0026     0.4264  -2.351   0.0193 *  
+#> txp5          0.2014     0.1522   1.324   0.1865    
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 1.963 on 716 degrees of freedom
-#> Multiple R-squared:  0.005683,   Adjusted R-squared:  0.001517 
-#> F-statistic: 1.364 on 3 and 716 DF,  p-value: 0.2526
+#> Residual standard error: 1.726 on 331 degrees of freedom
+#> Multiple R-squared:  0.2426, Adjusted R-squared:  0.2357 
+#> F-statistic: 35.34 on 3 and 331 DF,  p-value: < 2.2e-16
 ```
 
 ### interpret coefficients
@@ -537,28 +587,26 @@ summary(im11$ITS)
 interpret(im11)$its
 #> Interpretations: ITS 
 #> -------------------- 
-#> Note: Variable names below based on time points (or 'interruptions') 
-#> won't match identically with the output (e.g., if time 1 = 12 months, 
-#> the corresponding variables are post1 = post12). 
+#> Note: Some variable names below based on time points (or 'interruptions'). 
 #> This analysis is for a one-group, single intervention period (interruption). 
 #> 
-#> Intercept is 4.472 and the starting value of the trend 
+#> Intercept is 6.33 and the starting value of the trend 
 #> for the intervention group. 
 #> 
-#> ITS.Time is 0.016 and the slope prior to intervention. 
-#> The coefficient is non-significant. 
+#> ITS.Time is -0.289 and the slope prior to intervention. 
+#> The coefficient is significant. 
 #> 
-#> post1 is -0.419 and the immediate shift in the trend line 
+#> post5 is -1.003 and the immediate shift in the trend line 
 #> after the intervention start (e.g., 1st year of intervention). 
-#> The coefficient is non-significant. 
+#> The coefficient is significant. 
 #> 
-#> txp1 is 0.055 and the difference between pre- and 
+#> txp5 is 0.201 and the difference between pre- and 
 #> post-intervention slopes (e.g., change in the pre-intervention 
 #> slope). The coefficient is non-significant. 
 #> 
 #> Summary: The results show that after the start of the intervention, 
 #> there was a non-significant change in the los trend. This gives 
-#> a total post-intervention trend in the los of 0.071 
+#> a total post-intervention trend in the los of -0.087 
 #> over time (i.e., the total combined value of change not the 
 #> change relative to pre-intervention). 
 #> 
@@ -572,7 +620,7 @@ with interrupt= c(5, 9) and its=“one”
 ### ITS model 2
 
 ``` r
-im12 <- assess(formula=los ~ ., data=hosprog, intervention = "program",
+im12 <- assess(formula=los ~ ., data=hosp1, intervention = "program",
                int.time="month", interrupt= c(5, 9), its="one")
 ```
 
@@ -586,26 +634,26 @@ summary(im12$ITS)
 #> 
 #> Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -3.4880 -1.3729 -0.3323  1.0400  8.6369 
+#> -3.7673 -1.1571 -0.2641  0.5841  8.8966 
 #> 
 #> Coefficients:
 #>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept)  4.47171    0.32328  13.832   <2e-16 ***
-#> ITS.Time     0.01634    0.11531   0.142    0.887    
-#> post5       -0.34634    0.37210  -0.931    0.352    
-#> txp5         0.01687    0.16336   0.103    0.918    
-#> post9       -0.07645    0.38591  -0.198    0.843    
-#> txp9         0.13087    0.15980   0.819    0.413    
+#> (Intercept)   6.3299     0.4157  15.226   <2e-16 ***
+#> ITS.Time     -0.2889     0.1438  -2.009   0.0453 *  
+#> post5        -0.9877     0.4569  -2.161   0.0314 *  
+#> txp5          0.2517     0.2051   1.227   0.2207    
+#> post9        -0.7806     0.5100  -1.530   0.1269    
+#> txp9          0.2296     0.2114   1.086   0.2781    
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 1.964 on 714 degrees of freedom
-#> Multiple R-squared:  0.006888,   Adjusted R-squared:  -6.622e-05 
-#> F-statistic: 0.9905 on 5 and 714 DF,  p-value: 0.4225
+#> Residual standard error: 1.72 on 329 degrees of freedom
+#> Multiple R-squared:  0.2519, Adjusted R-squared:  0.2405 
+#> F-statistic: 22.16 on 5 and 329 DF,  p-value: < 2.2e-16
 ```
 
 We continue with comparing the intervention and control groups on their
-survey scores which is specified with interrupt= 5 and its=“two”.
+LOS scores which is specified with interrupt= 5 and its=“two”.
 
 ### ITS model 3
 
@@ -624,24 +672,24 @@ summary(im21$ITS)
 #> 
 #> Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -3.7673 -1.1599 -0.2980  0.8575  9.0804 
+#> -3.7673 -1.1722 -0.3348  0.8794  9.1718 
 #> 
 #> Coefficients:
 #>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept)  3.08956    0.39373   7.847 1.57e-14 ***
-#> ITS.Time     0.16346    0.14503   1.127   0.2601    
-#> ITS.Int      3.24031    0.57707   5.615 2.82e-08 ***
-#> txi         -0.45232    0.20571  -2.199   0.0282 *  
-#> post5        0.45770    0.45100   1.015   0.3105    
-#> txp5         0.04517    0.15291   0.295   0.7678    
-#> ixp5        -1.46578    0.62283  -2.353   0.0189 *  
-#> txip5        0.17009    0.21667   0.785   0.4327    
+#> (Intercept)   3.0896     0.3951   7.821 1.90e-14 ***
+#> ITS.Time      0.1635     0.1455   1.123   0.2617    
+#> ITS.Int       3.2403     0.5790   5.596 3.13e-08 ***
+#> txi          -0.4523     0.2064  -2.191   0.0287 *  
+#> post5         0.4413     0.4508   0.979   0.3279    
+#> txp5          0.0297     0.1530   0.194   0.8462    
+#> ixp5         -1.4439     0.6249  -2.311   0.0211 *  
+#> txip5         0.1717     0.2174   0.790   0.4299    
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 1.746 on 712 degrees of freedom
-#> Multiple R-squared:  0.2177, Adjusted R-squared:   0.21 
-#> F-statistic:  28.3 on 7 and 712 DF,  p-value: < 2.2e-16
+#> Residual standard error: 1.752 on 712 degrees of freedom
+#> Multiple R-squared:  0.2124, Adjusted R-squared:  0.2046 
+#> F-statistic: 27.43 on 7 and 712 DF,  p-value: < 2.2e-16
 ```
 
 We have an interest in a 2nd interruption at month 9, which is specified
@@ -664,28 +712,28 @@ summary(im22$ITS)
 #> 
 #> Residuals:
 #>     Min      1Q  Median      3Q     Max 
-#> -3.7673 -1.1580 -0.2756  0.8797  8.7874 
+#> -3.7673 -1.1755 -0.2888  0.9020  8.8966 
 #> 
 #> Coefficients:
 #>             Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept)  3.08956    0.39247   7.872 1.31e-14 ***
-#> ITS.Time     0.16346    0.14456   1.131   0.2586    
-#> ITS.Int      3.24031    0.57522   5.633 2.55e-08 ***
-#> txi         -0.45232    0.20505  -2.206   0.0277 *  
-#> post5        0.60967    0.47359   1.287   0.1984    
-#> txp5        -0.02375    0.20738  -0.115   0.9089    
-#> ixp5        -1.62620    0.66085  -2.461   0.0141 *  
-#> txip5        0.31548    0.29077   1.085   0.2783    
-#> post9       -0.20282    0.49371  -0.411   0.6813    
-#> txp9         0.28502    0.20012   1.424   0.1548    
-#> ixp9        -0.72043    0.69600  -1.035   0.3010    
-#> txip9       -0.05522    0.28668  -0.193   0.8473    
+#> (Intercept)  3.08956    0.39418   7.838 1.68e-14 ***
+#> ITS.Time     0.16346    0.14519   1.126   0.2606    
+#> ITS.Int      3.24031    0.57773   5.609 2.92e-08 ***
+#> txi         -0.45232    0.20594  -2.196   0.0284 *  
+#> post5        0.59672    0.47463   1.257   0.2091    
+#> txp5        -0.03780    0.20378  -0.186   0.8529    
+#> ixp5        -1.58438    0.66393  -2.386   0.0173 *  
+#> txip5        0.28951    0.29147   0.993   0.3209    
+#> post9       -0.21293    0.46895  -0.454   0.6499    
+#> txp9         0.28005    0.19285   1.452   0.1469    
+#> ixp9        -0.56762    0.69886  -0.812   0.4169    
+#> txip9       -0.05043    0.28863  -0.175   0.8613    
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 1.74 on 708 degrees of freedom
-#> Multiple R-squared:  0.227,  Adjusted R-squared:  0.215 
-#> F-statistic:  18.9 on 11 and 708 DF,  p-value: < 2.2e-16
+#> Residual standard error: 1.748 on 708 degrees of freedom
+#> Multiple R-squared:  0.2203, Adjusted R-squared:  0.2081 
+#> F-statistic: 18.18 on 11 and 708 DF,  p-value: < 2.2e-16
 ```
 
 ### View a partial prediction plot
@@ -698,7 +746,7 @@ plot(x=im22, y="ITS", ylim=c(2, 8), add.legend="bottomleft")
 
 We can also perform an ITS on binary outcomes like death within 30-days.
 We will examine an intervention and control group at months 5 and 9,
-which is specified with interrupt= c(5, 9) and its=“two”.
+which is specified with interrupt= c(5, 9) and its =“two”.
 
 ### ITS model 5
 
@@ -717,28 +765,28 @@ summary(id22$ITS)
 #> 
 #> Residuals:
 #>      Min       1Q   Median       3Q      Max 
-#> -0.28088 -0.17307 -0.09251 -0.05100  0.95354 
+#> -0.26332 -0.19587 -0.08391 -0.04646  0.95377 
 #> 
 #> Coefficients:
 #>              Estimate Std. Error t value Pr(>|t|)  
-#> (Intercept)  0.082862   0.075225   1.102   0.2710  
-#> ITS.Time    -0.009101   0.027708  -0.328   0.7427  
-#> ITS.Int      0.181411   0.110253   1.645   0.1003  
-#> txi         -0.013699   0.039302  -0.349   0.7275  
-#> post5        0.195263   0.090774   2.151   0.0318 *
-#> txp5        -0.023922   0.039749  -0.602   0.5475  
-#> ixp5        -0.294530   0.126666  -2.325   0.0203 *
-#> txip5        0.067477   0.055733   1.211   0.2264  
-#> post9        0.180356   0.094631   1.906   0.0571 .
-#> txp9        -0.026088   0.038357  -0.680   0.4966  
-#> ixp9        -0.322297   0.133403  -2.416   0.0159 *
-#> txip9        0.040490   0.054948   0.737   0.4614  
+#> (Intercept)  0.082862   0.075334   1.100   0.2717  
+#> ITS.Time    -0.009101   0.027748  -0.328   0.7430  
+#> ITS.Int      0.181411   0.110412   1.643   0.1008  
+#> txi         -0.013699   0.039359  -0.348   0.7279  
+#> post5        0.198078   0.090709   2.184   0.0293 *
+#> txp5        -0.026453   0.038946  -0.679   0.4972  
+#> ixp5        -0.302124   0.126886  -2.381   0.0175 *
+#> txip5        0.071580   0.055704   1.285   0.1992  
+#> post9        0.170102   0.089622   1.898   0.0581 .
+#> txp9        -0.014163   0.036857  -0.384   0.7009  
+#> ixp9        -0.306371   0.133562  -2.294   0.0221 *
+#> txip9        0.020050   0.055162   0.363   0.7164  
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
-#> Residual standard error: 0.3336 on 708 degrees of freedom
-#> Multiple R-squared:  0.05319,    Adjusted R-squared:  0.03848 
-#> F-statistic: 3.616 on 11 and 708 DF,  p-value: 5.427e-05
+#> Residual standard error: 0.334 on 708 degrees of freedom
+#> Multiple R-squared:  0.05044,    Adjusted R-squared:  0.03569 
+#> F-statistic: 3.419 on 11 and 708 DF,  p-value: 0.0001208
 ```
 
 ### interpret ITS model 5 results
@@ -747,8 +795,7 @@ summary(id22$ITS)
 interpret(id22)$its
 #> Interpretations: ITS 
 #> -------------------- 
-#> Note: Variable names below based on time points (or 'interruptions') 
-#> won't match identically with the output (e.g., if time 1 = 12 months, 
+#> Note: Some variable names below based on time points (or 'interruptions'). 
 #> This analysis is for a two-group, single intervention period (interruption). 
 #> Positive values indicate higher intervention group values and vice-versa for: 
 #> post1, txp1, ixp1, txip1, post2, txp2, ixp2, txip2. 
@@ -767,40 +814,40 @@ interpret(id22)$its
 #> control group's pre-intervention slopes (intervention - control). 
 #> The coefficient is non-significant. 
 #> 
-#> post1 is 0.195 and the immediate shift in the control group 
+#> post5 is 0.198 and the immediate shift in the control group 
 #> trend line after the 1st intervention start. The coefficient is 
 #> significant. 
 #> 
-#> txp1 is -0.024 and the difference between pre- and post-intervention 
+#> txp5 is -0.026 and the difference between pre- and post-intervention 
 #> control group slopes (e.g., change in the pre-intervention 
 #> slope). The coefficient is non-significant. 
 #> 
-#> ixp1 is -0.295 and the difference between the intervention and 
+#> ixp5 is -0.302 and the difference between the intervention and 
 #> control groups (intervention - control) in the period immediately 
 #> after the intervention started (e.g., 1st year of intervention 1). 
 #> The coefficient is significant. 
 #> 
-#> txip1 is 0.067 and non-significant. This is the difference in both 
+#> txip5 is 0.072 and non-significant. This is the difference in both 
 #> group's slope changes since pre-intervention (pre-slopes compared 
 #> to post-slopes). For example, both have pre-intervention slopes 
 #> of 2, the control group's slope remained the same, therefore the 
 #> post 1st intervention slope is 0. And the intervention group's slope 
 #> increased by 2, then txip1 = 2 (= 2 - 0). 
 #> 
-#> post2 is 0.18 and the immediate shift in the control group 
+#> post9 is 0.17 and the immediate shift in the control group 
 #> trend line after the 2nd intervention start. The coefficient is 
 #> non-significant. 
 #> 
-#> txp2 is -0.026 and the difference between 1st and 2nd intervention 
+#> txp9 is -0.014 and the difference between 1st and 2nd intervention 
 #> control group slopes (e.g., change in the 1st intervention 
 #> slope). The coefficient is non-significant. 
 #> 
-#> ixp2 is -0.322 and the difference between the intervention and 
+#> ixp9 is -0.306 and the difference between the intervention and 
 #> control groups (intervention - control) in the period immediately 
 #> after the 2nd intervention started (e.g., 1st year of intervention 2). 
 #> The coefficient is significant. 
 #> 
-#> txip2 is 0.04 and non-significant. This is the difference in both group's 
+#> txip9 is 0.02 and non-significant. This is the difference in both group's 
 #> slope changes since the 1st intervention (1st intervention slope compared 
 #> to the 2nd). For example, both have 1st intervention slopes of 2, the control 
 #> group's slope remained the same, therefore the 2nd intervention slope is 0. And 
@@ -808,16 +855,96 @@ interpret(id22)$its
 #> 
 #> Summary 1: For the 1st intervention period, the results show that the 
 #> intervention group's non-significant shift in death30, 
-#> post 1st intervention was 0.021. The control group's non-significant 
-#> shift in death30, post 1st intervention was -0.033. The non-significant 
-#> difference between both groups is 0.054. 
+#> post 1st intervention was 0.022. The control group's non-significant 
+#> shift in death30, post 1st intervention was -0.036. The non-significant 
+#> difference between both groups is 0.058. 
 #> 
 #> Summary 2: For the 2nd intervention period, the results show that the 
 #> intervention group's non-significant shift in death30, 
-#> post 2nd intervention was 0.035. The control group's significant 
-#> shift in death30, post 2nd intervention was -0.059. The significant 
-#> difference between both groups is 0.094. 
+#> post 2nd intervention was 0.028. The control group's significant 
+#> shift in death30, post 2nd intervention was -0.05. The significant 
+#> difference between both groups is 0.078. 
 #> 
 #> If there are additional variables in the model then the coefficients 
 #> above represent effects after controlling for the other variables.
 ```
+
+<center>
+
+### 6. REVISIONS AND NEW ADDITIONS!
+
+</center>
+
+The following are corrections of errors and additions in the next
+version of ham.
+
+Errors corrected are for plot.assess only: 1) DID=“many” time 1 is no
+longer the intercept and 2) ITS=“two” intercept is now correct.
+
+Additions are for plot.assess only: 1) added some graphing parameters
+and 2) added arrows and coefficient names to help visualize model
+coefficients.
+
+Examples of new plotting options are below.
+
+<center>
+
+## plot.assess update
+
+</center>
+
+### Differences-in-Differences
+
+``` r
+plot(dm1, "DID", add.legend="bottom", ylim=c(2, 8), main="DID: Two No Coefficients", col=c("dodgerblue","magenta"), lwd=7, cex=2, cex.axis=2, cex.lab=1.5,  cex.main=3, name=TRUE, )
+```
+
+<img src="man/figures/README-revDID0-1.png" width="100%" />
+
+``` r
+plot(dm1, "DID", add.legend="bottom", xlim=c(-.1, 1.1), ylim=c(2, 8), main="DID: Two", col=c("dodgerblue","magenta"), lwd=7, cex=2, cex.axis=2, cex.lab=1.5,  cex.main=3, arrow=TRUE, xshift=c(.02), cex.text=1.5, coefs=TRUE, round.c=2, cfact=T, conf.int=TRUE, adj.alpha=0.2 )
+```
+
+<img src="man/figures/README-revDID1-1.png" width="100%" />
+
+``` r
+plot(dm2, "DID", add.legend="topleft", xlim=c(-.5, 12), ylim=c(2, 8), main="DID: Many", col=c("purple","green"), lwd=7, cex=3, cex.axis=2, cex.lab=1.5,  cex.main=3, arrow=TRUE, xshift=c(.25, .1), cex.text=1.5, coefs=TRUE, round.c=2, cfact=T, conf.int=TRUE, adj.alpha=0.2 )
+```
+
+<img src="man/figures/README-revDID2-1.png" width="100%" />
+
+### Interrupted Time Series
+
+``` r
+plot(im11, "ITS", add.legend="topleft", xlim=c(-1, 14), ylim=c(2, 8), main="ITS study: SGST", col="thistle", lwd=7, cex=3, cex.axis=2, cex.lab=1.5,  cex.main=3, arrow=TRUE, xshift=c(.25, .25), cex.text=1.5, coefs=TRUE, round.c=2, cfact=T, conf.int=TRUE, adj.alpha=0.2 )
+```
+
+<img src="man/figures/README-revITS1-1.png" width="100%" />
+
+``` r
+plot(im12, "ITS", add.legend="topleft", xlim=c(-1, 14), ylim=c(2, 8), main="ITS study: SGMT", col="hotpink", lwd=7, cex=3, cex.axis=2, cex.lab=1.5,  cex.main=3, arrow=TRUE, xshift=c(.25, .25), cex.text=1.5, coefs=TRUE, round.c=2, cfact=T, conf.int=TRUE, adj.alpha=0.2 )
+```
+
+<img src="man/figures/README-revITS2-1.png" width="100%" />
+
+``` r
+plot(im21, "ITS", add.legend="top", xlim=c(-1, 14), ylim=c(2, 8), main="ITS study: MGST", col=c("springgreen","salmon"), lwd=7, cex=3, cex.axis=2, cex.lab=1.5,  cex.main=3, arrow=TRUE, xshift=c(.25, .25), cex.text=1.5, coefs=TRUE, round.c=2, pos.text= list("post5"=2), conf.int=TRUE, adj.alpha=0.2 )
+```
+
+<img src="man/figures/README-revITS3-1.png" width="100%" />
+
+Using all plot options
+
+``` r
+plot(im22, "ITS", add.legend="top", xlim=c(-.75, 13.1), ylim=c(2, 8), main="ITS study: MGMT", col=c("dodgerblue","goldenrod"), lwd=7, cex=2, cex.axis=2, cex.lab=1.5,  cex.main=3, cex.legend=1.25, arrow=TRUE, xshift=c(0, .5), cex.text=1.25, name=F, coefs=TRUE, round.c=2, pos.text= list("txp5"=3, "post9"=4), tcol="springgreen", cfact=T, conf.int=TRUE, adj.alpha=0.3, add.means=TRUE)
+```
+
+<img src="man/figures/README-revITS4-1.png" width="100%" />
+
+### New Graph: Graph for group level confidence intervals over time. The trend results with averages based on 6 month rolling averages
+
+``` r
+plot(x=gr1, y="roll", lwd=4, gcol=c("red", "blue"), gband=TRUE, overall=TRUE, oband=TRUE, ocol="gray", tcol="green", tgt=4, tpline=c(4,6), tpcol="yellow", name=TRUE, cex.axis=2, cex.lab=2, cex.text=3, cex.main=1.25, adj.alpha=.3)
+```
+
+<img src="man/figures/README-plotGroup3-1.png" width="100%" />
