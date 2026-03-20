@@ -9,6 +9,8 @@
   y,
   xlim = NULL,
   ylim = NULL,
+  xlab = NULL,
+  ylab = NULL,
   main = NULL,
   lwd = NULL,
   col = NULL,
@@ -18,7 +20,10 @@
   adj.alpha = NULL,
   add.means = FALSE,
   add.legend = NULL,
-  cex = NULL,
+  legend = NULL,
+  tgt = NULL,
+  tgtcol = "gray",
+  cex = 1,
   cex.axis = NULL,
   cex.lab = NULL,
   cex.main = NULL,
@@ -30,6 +35,7 @@
   pos.text = NULL,
   arrow = FALSE,
   xshift = NULL,
+  x.axis = NULL,
   ...
 )
 }
@@ -41,6 +47,10 @@
 \item{xlim}{specify plot's x-axis limits with a 2 value vector.}
 
 \item{ylim}{specify plot's y-axis limits with a 2 value vector.}
+
+\item{xlab}{a vector label for the x-axis.}
+
+\item{ylab}{a vector label for the y-axis.}
 
 \item{main}{the main title of the plot.}
 
@@ -61,6 +71,12 @@
 \item{add.legend}{add a legend by selecting the location as "bottomright", "bottom", "bottomleft",
 "left", "topleft", "top", "topright", "right", "center". No legend if nothing selected.}
 
+\item{legend}{a character vector of length >= 1 to appear in the DID and ITS model legends to represent the Intervention and Control groups.}
+
+\item{tgt}{specify 1 or more values on the x-axis of where to add a target line when y='group'. Or 1 or more values on the y-axis of where to add a target line when y='time' or 'roll'. Default is NULL.}
+
+\item{tgtcol}{select a color for the target line. Default is 'gray'.}
+
 \item{cex}{A numerical value giving the amount by which plotting text and symbols should be magnified relative to the default of 1.}
 
 \item{cex.axis}{The magnification to be used for axis annotation relative to the current setting of cex.}
@@ -80,8 +96,7 @@ should be added to the plot. Default is FALSE. It is overridden if coefs = TRUE.
 and p-value significance symbols ('+' p<0.10; '\emph{' p<0.05; '\strong{' p<0.01; '}}' p<0.001) should be
 added to the plot. Default is FALSE. coefs = TRUE overrides name = FALSE.}
 
-\item{round.c}{an integer indicating the number of decimal places
-to be used for rounding coefficient values.}
+\item{round.c}{an integer indicating the number of decimal places to be used for rounding coefficient values. Default is 2.}
 
 \item{pos.text}{a list of named integer value(s) between 1 to 4 indicating
 the position of the text added into the plot. List name(s) should use coefficient variable names.}
@@ -95,6 +110,11 @@ or negative. And xshift should be specified in the order of the coefficients. On
 of the furthest right, vertical lines for the intervention group is shifted (i.e., not left).
 One line is shifted when there is 1 treatment/interruption period and 2 shifts for 2 periods.
 (e.g., "DID" before "DID.Trend" for DID models with argument did="many").}
+
+\item{x.axis}{a vector of unique character or numeric values that makes up x-axis values to
+replace the intervention time variable values. This will be most helpful if you prefer current
+calendar years instead of values starting at 1 (e.g., x.axis= sort(unique(data$Year)) for 1900-1999,
+not 1-100). Must have equal lengths for unique x.axis values and unique replaced values. Default is NULL.}
 
 \item{...}{additional arguments.}
 }
@@ -121,5 +141,19 @@ plot(am2, "ITS", add.legend="top", xlim=c(-.5, 13), ylim=c(2, 8), main="ITS stud
 col=c("cyan","hotpink"), tcol="springgreen", lwd=7, cex=2, cex.axis=2, cex.lab=2,
 cex.main=3, cex.text=1.2, cex.legend=1.25, name=FALSE, coefs=TRUE, round.c=1,
 pos.text= list("txp5"=3, "post9"=4), arrow=TRUE, xshift=c(.5, 1.5),
-cfact=T, conf.int=TRUE, adj.alpha=0.2)
+cfact=TRUE, conf.int=TRUE, adj.alpha=0.2)
+# ITS: USA's unemployment rate with a single group, 10 interruption model
+key_time <- c(5, 14, 17, 29, 42, 59, 69, 73, 80,92)# key interruption periods
+u110 <- assess(formula=rate ~ ., data=unemployment, intervention="usa",# model
+               int.time="year", its="one", interrupt= key_time)
+# Graph the results, note shift in intercept and slope during 1933's New Deal
+plot(u110, "ITS", add.means = TRUE, coefs=TRUE, conf.int=TRUE, adj.alpha = .2,
+     lwd=2, col="slategray", tcol= "orange", main="US unemployment rate",
+     xlab="Years (1929-2024)", ylab="Proportion of labor market",
+     cex.main=2, cex.axis = 1.5, cex.lab = 1.5, cex=2, cex.text = 1.25,
+     pos.text=list("ITS.Time"=4, "post42"=1,"txp42"=3,"txp92"=3), x.axis=unemployment$Year)
+for(i in 1:length(key_time)) {
+  text(key_time[i], .22-(.01*i), cex=1.25, labels =
+         paste0(unemployment[ key_time[i], "Year"], ": ", unemployment[ key_time[i], "event"]))
+}
 }

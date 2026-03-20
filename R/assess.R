@@ -29,7 +29,25 @@
 #' @param treatment optional treatment start period variable name selected for DID models.
 #' Select 1 value from 'int.time' to indicate the start of the intervention.
 #' @param interrupt optional interruption (or intervention) period(s) variable name selected for ITS
-#' models. Select 1 or 2 values from 'int.time' to indicate the start and/or key intervention periods.
+#' models. Select 1 or more values from 'int.time' to indicate the start and/or key intervention periods.
+#' There needs to be at least 2 time points per period, at least 3 is better. For example, interrupt= c(3, 5, 7)
+#' will suffice, especially if you want to isolate certain periods but interrupt= c(3, 6, 9) may provide more
+#' useful information.
+#' @param subset an expression defining a subset of the observations to use in the regression model. The default
+#' is NULL, thereby using all observations. Specify, for example, data$hospital == "NY" or c(1:100,200:300) respectively to
+#' use just those observations. This is helpful when doing a submodel for DID or ITS after identifying similar groups.
+#' DID and ITS models could be improved by limiting the choice of control groups to only those with similar values on
+#' the intervention indicator and baseline trend variable (e.g., 'ITS.Time' and 'ITS.Int') with p-values >= 0.10.
+#' @param stagger optional list to indicate staggered entry into the intervention or treatment group.
+#' Relevant model variables are re-coded to appropriate values and can be used for a form of 'stacked' DID
+#' or ITS. If a group of cases joins X months after the primary sample, model variables are adjusted X months.
+#' This three element list named: 'a' = a character vector for the name of the grouping column; 'b' = specific
+#' categories or levels that indicate which cases have a staggered entry; and 'c' = the time point values
+#' at staggered entry. Both 'b' and 'c' must have identical lengths. For ITS models, the staggered entry
+#' time must be: interrupt 1 < stagger time < interrupt 2. For example, a WHO health policy may have
+#' started in the 3rd year of the study period in NY and Toronto but Chicago and LA joined 6 and 12
+#' months later, therefore stagger= list(a= 'city', b=c('Chicago', 'LA')), c=(30, 36) while interrupt= 25.
+#' Default is NULL.
 #' @param topcode optional value selected to top code Y (or left-hand side) of the formula. Analyses
 #' will be performed using the new top coded variable.
 #' @param propensity optional character vector of variable names to perform a propensity score model.
@@ -48,6 +66,10 @@
 #' @references
 #' Angrist, J. D., & Pischke, J. S. (2009). Mostly Harmless Econometrics:
 #' An Empiricist's Companion. Princeton University Press. ISBN: 9780691120355.
+#'
+#' Gebski, V., et al. (2012). Modelling Interrupted Time Series to Evaluate Prevention
+#' and Control of Infection in Healthcare. Epidemiology & Infections, 140, 2131–2141.
+#' https://doi.org/10.1017/S0950268812000179
 #'
 #' Linden, A. (2015). Conducting Interrupted Time-series Analysis for Single- and
 #' Multiple-group Comparisons. The Stata Journal, 15, 2, 480-500. https://doi.org/10.1177/1536867X1501500208
@@ -86,8 +108,8 @@
 #'
 #' @importFrom stats as.formula binomial plogis predict update aggregate
 assess <- function(formula, data, regression= "none", did ="none", its ="none",
-                   intervention =NULL, int.time=NULL, treatment=NULL,
-                   interrupt=NULL, topcode =NULL, propensity =NULL, newdata =FALSE) {
+                   intervention =NULL, int.time=NULL, treatment=NULL,interrupt=NULL, subset=NULL,
+                   stagger= NULL, topcode =NULL, propensity =NULL, newdata =FALSE) {
   # Use various formulas for the different models
   primary_formula <- formula
   #Get formula variables
@@ -95,6 +117,17 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   yvar <- xyvar[1]
   xvar <- xyvar[-1]
 
+#Identify all rows to use for subsets
+  all_rows <- nrow(data)
+  if(!is.null(subset)) {
+    subset <- subset
+  } else {
+    subset <- 1:all_rows
+  }
+#Create subset data if needed
+  if(!is.null(subset)) {
+    data <-   eval(substitute(data[subset , ], list(subset =subset))  )
+  }
   # Identify duplicate variable names in new data
   if (is.null(data)) {
     stop("Error: No data found.")
@@ -108,9 +141,8 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   if (length( dup_vars) >= 1) {
     stop(name_stop_fnc)
   }
-  #Stop too many treatment and interruption periods
+  #Stop too many treatment and duplicated interruption periods
   if(length(treatment) > 1) stop("Error: treatment > 1. Expecting only 1 time.")
-  if(length(interrupt) > 2) stop("Error: interrupt > 2. Expecting only 1 or 2 times.")
   if(any(duplicated(interrupt)) == TRUE) stop("Error: Duplicated 'interrupt'. Expecting unique values.")
 
   #Identify if there will be new data created
@@ -279,11 +311,9 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
       stop("Error: 'interrupt' is missing.")
     }
   }
-
-  # Get unique times
-  if(its %in%  c("one", "two")) {
-    unique_its_time <- sort(unique(data[, int.time]))
-  }
+  #############################
+  ## Individual ITS function ##
+  #############################
   #indicate type of ITSA
   if(its == "none") {
     itsa_type <- its
@@ -302,49 +332,326 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
       itsa_type <- "mgmt"
     }
   }
-  # Create ITS variables #
-  # All groups, all times
-  if(itsa_type != "none") {
-    ITS.Time <- as.numeric(ordered(data[, int.time]))
+  #Stop: Too few time points between periods for ITS
+  multi_interrupt_diff <- NULL
+  if (itsa_type %in% c("sgmt","mgmt")) {
+    multi_interrupt_diff <- 0:1 %in% diff(sort(interrupt))
   }
-  if(itsa_type %in% c("mgst", "mgmt")) {
-    ITS.Int <- data[, intervention]
-  }
-  if(itsa_type %in% c("mgst", "mgmt")) {
-    txi <- ITS.Int * ITS.Time
-  }
-  # Time 1
-  if(itsa_type != "none") {
-    post1 <- ifelse(ITS.Time >= which(unique_its_time == sort(interrupt)[1]), 1, 0 )
-  }
-  if(itsa_type != "none") {
-    txp1 <- (ITS.Time - which(unique_its_time == sort(interrupt)[1])) * post1
-  }
-  if(itsa_type %in% c("mgst", "mgmt")) {
-    ixp1 <- ITS.Int * post1
-  }
-  if(itsa_type %in% c("mgst", "mgmt")) {
-    txip1 <- ITS.Int * txp1
-  }
-  # Time 2
-  if(itsa_type %in% c("sgmt", "mgmt")) {
-    post2 <- ifelse(ITS.Time >= which(unique_its_time == sort(interrupt)[2]), 1, 0 )
-  }
-  if(itsa_type %in% c("sgmt", "mgmt")) {
-    txp2 <- (ITS.Time - which(unique_its_time == sort(interrupt)[2])) * post2
-  }
-  if(itsa_type == "mgmt") {
-    ixp2 <- ITS.Int * post2
-  }
-  if(itsa_type == "mgmt") {
-    txip2 <- ITS.Int * txp2
-  }
+  if(any(multi_interrupt_diff) ==TRUE) stop("Error: Difference between time points is < 2 for the 'interrupt' argument. ITS can be calculated in segments of 2 time points but consider using 3 or more time points for a more informative analysis.")
+
   #No propensity score for single group ITSA
   if(itsa_type %in% c("sgst", "sgmt")) {
     if (!is.null(propensity) ) {
       stop("Error: No propensity score calculated without a control group.")
     }
   }
+
+  ##########
+  ## post ##
+  ##########
+  fncITSPost <- function(itime= ITS.Time, unqitime= unique_its_time,
+                         interrupt= interrupt ) {
+    #Create NULL to prevent notes
+    ITS.Time <- NULL
+    unique_its_time <- NULL
+    # 1. Create data frame with a numeric structure and temp column names
+    df <- data.frame(matrix(nrow = length(itime), ncol = length(interrupt)))
+    # 2. Make each column a numeric variable to pre-allocate space in the for loop
+    df[] <- lapply(df, function(x) as.numeric(as.character(x)))
+    # 3. Initialize a vector to store the new names
+    new_names <- vector("character", ncol(df))
+    # 4. Use a for loop to generate names
+    for (i in 1:length(interrupt)) {
+      new_names[i] <- paste0("post", sort(interrupt)[i])
+    }
+    # 5. Assign the new names to the data frame
+    colnames(df) <- new_names
+    # 6. Create "post" values with a new function
+    postfnc <- function(df, itime= itime, unqitime= unqitime,
+                        interrupt= interrupt) {
+      #For loop to create "post" variables
+      for (i in 1:length(interrupt)) {
+        df[, i] <- ifelse(itime >= which(unqitime == sort(interrupt[i])), 1, 0 )
+      }
+      return(df)
+    }
+    # 7. Run subfunction to create final data frame
+    df <- postfnc(df=df, itime= itime, unqitime= unqitime,
+                  interrupt= interrupt)
+
+    return(df)
+  }
+
+  #########
+  ## txp ##
+  #########
+  fncITStxp <- function(itime= ITS.Time, unqitime= unique_its_time,
+                        interrupt= interrupt, postdf= postdf ) {
+    #Create NULL to prevent notes
+    ITS.Time <- NULL
+    unique_its_time <- NULL
+    # 1. Create data frame with a numeric structure and temp column names
+    df <- data.frame(matrix(nrow = length(itime), ncol = length(interrupt)))
+    # 2. Make each column a numeric variable to pre-allocate space in the for loop
+    df[] <- lapply(df, function(x) as.numeric(as.character(x)))
+    # 3. Initialize a vector to store the new names
+    new_names <- vector("character", ncol(df))
+    # 4. Use a for loop to generate names
+    for (i in 1:length(interrupt)) {
+      new_names[i] <- paste0("txp", sort(interrupt)[i])
+    }
+    # 5. Assign the new names to the data frame
+    colnames(df) <- new_names
+    # 6. Create "txp" values with a new function
+    txpfnc <- function(df, itime= itime, unqitime= unqitime,
+                       interrupt= interrupt, postdf= postdf) {
+      #For loop to create "txp" variables
+      for (i in 1:length(interrupt)) {
+        df[, i] <- (itime - which(unqitime == sort(interrupt)[i])) * postdf[, i]
+      }
+      return(df)
+    }
+    # 7. Run subfunction to create final data frame
+    df <- txpfnc(df=df, itime= itime, unqitime= unqitime,
+                 interrupt= interrupt, postdf= postdf)
+
+    return(df)
+  }
+
+  #########
+  ## ixp ##
+  #########
+  fncITSixp <- function(itime= ITS.Time, iInt= ITS.Int, interrupt= interrupt,
+                        postdf= postdf ) {
+    #Create NULL to prevent notes
+    ITS.Time <- NULL
+    ITS.Int <- NULL
+    # 1. Create data frame with a numeric structure and temp column names
+    df <- data.frame(matrix(nrow = length(itime), ncol = length(interrupt)))
+    # 2. Make each column a numeric variable to pre-allocate space in the for loop
+    df[] <- lapply(df, function(x) as.numeric(as.character(x)))
+    # 3. Initialize a vector to store the new names
+    new_names <- vector("character", ncol(df))
+    # 4. Use a for loop to generate names
+    for (i in 1:length(interrupt)) {
+      new_names[i] <- paste0("ixp", sort(interrupt)[i])
+    }
+    # 5. Assign the new names to the data frame
+    colnames(df) <- new_names
+    # 6. Create "ixp" values with a new function
+    ixpfnc <- function(df, iInt= iInt, postdf=postdf, interrupt= interrupt) {
+      #For loop to create "ixp" variables
+      for (i in 1:length(interrupt)) {
+        df[, i] <- iInt * postdf[, i]
+      }
+      return(df)
+    }
+    # 7. Run subfunction to create final data frame
+    df <- ixpfnc(df=df, iInt= iInt, postdf=postdf, interrupt= interrupt)
+
+    return(df)
+  }
+
+  ##########
+  ## txip ##
+  ##########
+  fncITStxip <- function(itime= ITS.Time, iInt= ITS.Int,
+                         interrupt= interrupt, txpdf= txpdf ) {
+    #Create NULL to prevent notes
+    ITS.Time <- NULL
+    ITS.Int <- NULL
+    # 1. Create data frame with a numeric structure and temp column names
+    df <- data.frame(matrix(nrow = length(itime), ncol = length(interrupt)))
+    # 2. Make each column a numeric variable to pre-allocate space in the for loop
+    df[] <- lapply(df, function(x) as.numeric(as.character(x)))
+    # 3. Initialize a vector to store the new names
+    new_names <- vector("character", ncol(df))
+    # 4. Use a for loop to generate names
+    for (i in 1:length(interrupt)) {
+      new_names[i] <- paste0("txip", sort(interrupt)[i])
+    }
+    # 5. Assign the new names to the data frame
+    colnames(df) <- new_names
+    # 6. Create "ixp" values with a new function
+    txipfnc <- function(df, iInt= ITS.Int, txpdf=txpdf, interrupt= interrupt) {
+      #For loop to create "txip" variables
+      for (i in 1:length(interrupt)) {
+        df[, i] <- iInt * txpdf[, i]
+      }
+      return(df)
+    }
+    # 7. Run subfunction to create final data frame
+    df <- txipfnc(df=df, iInt= iInt, txpdf=txpdf, interrupt= interrupt)
+
+    return(df)
+  }
+
+# Make ITS data #
+  fncITSdata <- function(data, intervention = intervention, int.time=int.time,
+                         interrupt= interrupt, its=its, itsa_type=itsa_type) {
+
+    # Get unique times
+    if(its %in%  c("one", "two")) {
+      unique_its_time <- sort(unique(data[, int.time]))
+    }
+    # ITS type
+    if(itsa_type != "none") {
+      ITS.Time <- as.numeric(ordered(data[, int.time]))
+    }
+    if(itsa_type %in% c("mgst", "mgmt")) {
+      ITS.Int <- data[, intervention]
+    }
+    if(itsa_type %in% c("mgst", "mgmt")) {
+      txi <- ITS.Int * ITS.Time
+    }
+    # Create ITS data sections #
+    # post
+    postdf <- fncITSPost(itime= ITS.Time, unqitime= unique_its_time,
+                         interrupt= interrupt )
+    # txp
+    txpostdf <- fncITStxp(itime= ITS.Time, unqitime= unique_its_time,
+                          interrupt= interrupt, postdf= postdf)
+    # ixp
+    if(itsa_type %in% c("mgst", "mgmt")) {
+      ixpdf <- fncITSixp(itime= ITS.Time, iInt= ITS.Int, interrupt= interrupt,
+                         postdf= postdf )
+    }
+    # txip
+    if(itsa_type %in% c("mgst", "mgmt")) {
+      txipdf <- fncITStxip(itime= ITS.Time, iInt= ITS.Int,
+                           interrupt= interrupt, txpdf= txpostdf )
+    }
+    # Combine and arrange data
+    # sgst and sgmt
+    if(itsa_type %in% c("sgst", "sgmt")) {
+      combined_df <- cbind(postdf, txpostdf)
+      n <- ncol(postdf)
+      interweave_order <- order(c(1:n, 1:n))
+      combined_df <- combined_df[, interweave_order]
+    }
+    # mgst and mgmt
+    if(itsa_type %in% c("mgst", "mgmt")) {
+      combined_df <- cbind(postdf, txpostdf, ixpdf, txipdf)
+      n <- ncol(postdf)
+      interweave_order <- order(c(1:n, 1:n, 1:n, 1:n))
+      combined_df <- combined_df[, interweave_order]
+    }
+    #sgmt
+    if(itsa_type %in% c("sgst", "sgmt")) {
+      its_data <- cbind(ITS.Time, combined_df)
+    }
+    #mgmt
+    if(itsa_type %in% c("mgst", "mgmt")) {
+      its_data <- cbind(ITS.Time, ITS.Int, txi, combined_df)
+    }
+    return(its_data)
+  }
+  #####################
+  ## Create ITS data ##
+  #####################
+  if(itsa_type != "none") {
+    its_data <- fncITSdata(data=data, intervention = intervention, int.time=int.time,
+                           interrupt= interrupt, its=its, itsa_type=itsa_type)
+  }
+
+  # Staggered entry
+  if(!is.null(stagger)) {
+    #Declare objects
+    staggerA <- NULL
+    staggerB <- NULL
+    staggerC <- NULL
+    stagger_diff <- NULL
+    # Errors from incorrectly using stagger argument #
+    if(is(stagger[[1]])[1] != "character") stop("Error: Expecting a character vector for 'a' of the stagger argument.")
+    if(is(stagger[[3]])[1] != "numeric") stop("Error: Expecting a numeric vector for 'c' of the stagger argument.")
+    if(length(stagger[[2]]) != length(stagger[[2]])) stop("Error: There are an unequal number of elements in 'b' and 'c' of the stagger argument.")
+    if(length(interrupt) > 1) {
+      if(any(stagger[[3]] >= sort(interrupt)[2])) stop("Error: Staggered entry not performed if any 'stagger' time values are >= the 2nd lowest interruption value in the interrupt argument (e.g., stagger of 25 when interrupt=c(12, 24).")
+    }
+
+    if(its != "none") {
+      int_time_entry <- interrupt[1]
+    }
+    if(did != "none") {
+      int_time_entry <- treatment
+    }
+    #Get stagger values for later use
+    staggerA <- stagger[[1]]
+    staggerB <- stagger[[2]]
+    staggerC <- stagger[[3]]
+    #Convert model entry time into converted time (if necessary) to
+    int_time_E <- which(sort(unique((data[, int.time]))) == int_time_entry)
+    #Get staggered entry time as ordered rank to fit with converted data
+    stagC <- vector(mode="numeric", length= length(staggerC))
+    for (i in 1:length(staggerC)) {
+      stagC[i] <- which(sort(unique((data[, int.time]))) == staggerC[i])
+    }
+    # Get difference between primary entry period and staggered groups
+    stagger_diff <- int_time_E - stagC
+
+  }
+
+  ########################
+  ## Staggered ITS data ##
+  ########################
+  if(!is.null(stagger)) {
+
+    ##########
+    ## sgst ##
+    ##########
+    if (itsa_type == "sgst") {
+      # Recode the binary post intervention variables for post and ixp
+      for (i in 1:length(staggerB)) {
+        its_data[data[, staggerA] == staggerB[i], 2][its_data[data[, staggerA] == staggerB[i], 1] < staggerC[i]] <- 0
+      }
+      # Recode the trend variables for txp and txip
+      for (i in 1:length(staggerB)) {
+        its_data[, 3][data[, staggerA] == staggerB[i]] <- its_data[, 3][data[, staggerA] == staggerB[i]] + stagger_diff[i]
+      }
+      # Recode any negative values as 0
+      its_data[, 3] <- ifelse(its_data[, 3] < 0, 0, its_data[, 3])
+    }
+    ##########
+    ## sgmt ##
+    ##########
+    if (itsa_type == "sgmt") {
+      # Recode the binary post intervention variables for post and ixp
+      for (i in 1:length(staggerB)) {
+        its_data[data[, staggerA] == staggerB[i], 2][its_data[data[, staggerA] == staggerB[i], 1] < staggerC[i]] <- 0
+        its_data[data[, staggerA] == staggerB[i], 4][its_data[data[, staggerA] == staggerB[i], 1] < staggerC[i]] <- 0
+      }
+      # Recode the trend variables for txp and txip
+      for (i in 1:length(staggerB)) {
+        its_data[, 3][data[, staggerA] == staggerB[i]] <- its_data[, 3][data[, staggerA] == staggerB[i]] + stagger_diff[i]
+        its_data[, 5][data[, staggerA] == staggerB[i]] <- its_data[, 5][data[, staggerA] == staggerB[i]] + stagger_diff[i]
+      }
+      # Recode any negative values as 0
+      its_data[, 3] <- ifelse(its_data[, 3] < 0, 0, its_data[, 3])
+      its_data[, 5] <- ifelse(its_data[, 5] < 0, 0, its_data[, 5])
+    }
+    #################
+    ## mgst & mgmt ##
+    #################
+    if (itsa_type %in% c("mgst","mgmt")) {
+      # Recode the binary post intervention variables for post and ixp
+      for (i in 1:length(staggerB)) {
+        its_data[data[, staggerA] == staggerB[i], 4][its_data[data[, staggerA] == staggerB[i], 1] < staggerC[i]] <- 0
+        its_data[data[, staggerA] == staggerB[i], 6][its_data[data[, staggerA] == staggerB[i], 1] < staggerC[i]] <- 0
+      }
+      # Recode the trend variables for txp and txip
+      for (i in 1:length(staggerB)) {
+        its_data[, 5][data[, staggerA] == staggerB[i]] <- its_data[, 5][data[, staggerA] == staggerB[i]] + stagger_diff[i]
+        its_data[, 7][data[, staggerA] == staggerB[i]] <- its_data[, 7][data[, staggerA] == staggerB[i]] + stagger_diff[i]
+      }
+      # Recode any negative values as 0
+      its_data[, 5] <- ifelse(its_data[, 5] < 0, 0, its_data[, 5])
+      its_data[, 7] <- ifelse(its_data[, 7] < 0, 0, its_data[, 7])
+    }
+  }
+
+  #####################
+  ## Create DID data ##
+  #####################
   # Make DID data #
   if (did == "two") {
     did_data <- data.frame(Post.All, Int.Var, Period, DID)
@@ -352,6 +659,40 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   if (did == "many") {
     did_data <- data.frame(Post.All, Period, DID, DID.Trend)
   }
+
+  ########################
+  ## Staggered ITS data ##
+  ########################
+
+  if(!is.null(stagger)) {
+  #############
+  ## DID two ##
+  #############
+  if(did_type == "two" ) {
+    # Recode the binary post intervention variables for Post.All and DID
+    for (i in 1:length(staggerB)) {
+      did_data[data[, staggerA] == staggerB[i], 1][did_data[data[, staggerA] == staggerB[i], 3] < staggerC[i]] <- 0
+      did_data[data[, staggerA] == staggerB[i], 4][did_data[data[, staggerA] == staggerB[i], 3] < staggerC[i]] <- 0
+    }
+  }
+    ##############
+    ## DID many ##
+    ##############
+    if(did_type == "many" ) {
+      # Recode the binary post intervention variables for post and ixp
+      for (i in 1:length(staggerB)) {
+        did_data[data[, staggerA] == staggerB[i], 1][did_data[data[, staggerA] == staggerB[i], 2] < staggerC[i]] <- 0
+        did_data[data[, staggerA] == staggerB[i], 3][did_data[data[, staggerA] == staggerB[i], 2] < staggerC[i]] <- 0
+      }
+      # Recode the trend variables for txp and txip
+      for (i in 1:length(staggerB)) {
+        did_data[, 4][data[, staggerA] == staggerB[i]] <- did_data[, 4][data[, staggerA] == staggerB[i]] + stagger_diff[i]
+      }
+      # Recode any pre-intervention values as 0
+      did_data[, 4] <- ifelse(did_data[, 4] < int_time_entry, 0, did_data[, 4])
+    }
+    }
+
   #Get DID column names for later interpretations
   if(did_type != "none") {
     DID.Names <- colnames(did_data)
@@ -359,41 +700,6 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
     DID.Names <- NULL
   }
 
-  # Make ITS dataframes #
-  # Single group, single treatment (sgst) #
-  if(itsa_type == "sgst") {
-    its_data <- data.frame(ITS.Time, post1, txp1)
-    its_nms22 <- c("post1","txp1")
-    colnames(its_data)[which(colnames(its_data) %in% its_nms22)] <-
-      c(paste0("post", sort(interrupt)[1]), paste0("txp", sort(interrupt)[1]))
-  }
-  # Single group, multi-treatments (sgmt) #
-  if(itsa_type == "sgmt") {
-    its_data <- data.frame(ITS.Time, post1,txp1,post2, txp2)
-    its_nms22 <- c("post1","txp1","post2", "txp2")
-    colnames(its_data)[which(colnames(its_data) %in% its_nms22)] <-
-      c(paste0("post", sort(interrupt)[1]), paste0("txp", sort(interrupt)[1]),
-        paste0("post", sort(interrupt)[2]), paste0("txp", sort(interrupt)[2]))
-  }
-  # Multi-group, single treatments (mgst) #
-  if(itsa_type == "mgst") {
-    its_data <- data.frame(ITS.Time, ITS.Int, txi, post1,txp1,ixp1, txip1)
-    its_nms22 <- c("post1","txp1","ixp1", "txip1")
-    colnames(its_data)[which(colnames(its_data) %in% its_nms22)] <-
-      c(paste0("post", sort(interrupt)[1]), paste0("txp", sort(interrupt)[1]),
-        paste0("ixp", sort(interrupt)[1]), paste0("txip", sort(interrupt)[1]))
-  }
-  # Multi-group, multi-treatments (mgmt) #
-  if(itsa_type == "mgmt") {
-    its_data <- data.frame(ITS.Time, ITS.Int, txi, post1,txp1,ixp1,
-                           txip1,post2, txp2,ixp2, txip2)
-    its_nms22 <- c("post1","txp1","ixp1", "txip1","post2", "txp2","ixp2", "txip2")
-    colnames(its_data)[which(colnames(its_data) %in% its_nms22)] <-
-      c(paste0("post", sort(interrupt)[1]), paste0("txp", sort(interrupt)[1]),
-        paste0("ixp", sort(interrupt)[1]), paste0("txip", sort(interrupt)[1]),
-        paste0("post", sort(interrupt)[2]), paste0("txp", sort(interrupt)[2]),
-        paste0("ixp", sort(interrupt)[2]), paste0("txip", sort(interrupt)[2]))
-  }
   #Get ITS column names for later interpretations
   if(itsa_type != "none") {
     ITS.Names <- colnames(its_data)
@@ -520,7 +826,8 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
 
   # ITSA treatment effects
   if (create_its == TRUE) {
-    ITS.Effects <- itsEffect(model= its_model, type= itsa_type)
+    ITS.Effects <- itsEffect(model= its_model, type= itsa_type,
+                             interruptions= length(interrupt))
   } else {
     ITS.Effects <- NULL
   }

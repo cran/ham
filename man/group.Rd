@@ -8,13 +8,16 @@ group(
   x,
   y,
   z = NULL,
-  dataf,
+  data,
   dist = "t",
   conf.int = 0.95,
   increment = 1,
   rolling = NULL,
   quarts = FALSE,
-  cluster = FALSE
+  cluster = FALSE,
+  subset = NULL,
+  asis = FALSE,
+  dataf = NULL
 )
 }
 \arguments{
@@ -24,7 +27,7 @@ group(
 
 \item{z}{time period variable name.}
 
-\item{dataf}{name of data frame object.}
+\item{data}{name of data frame object.}
 
 \item{dist}{indicate the distribution used for confidence intervals. Options
 for the t, binomial, and exact Poisson distributions. Options are 't', 'b', and 'p'.
@@ -50,6 +53,16 @@ such as the Intra-Class Correlation, Median Odds Ratio, or Design Effect. Defaul
 Uses binary outcome formula (between-group variance/(between-group variance + (3.14^2/3)) for ICC
 in Rabe-Hesketh which may be more appropriate for multilevel models. ICC, MOR, DE may be less
 reliable for binomial and Poisson distributions, use caution.}
+
+\item{subset}{an expression defining a subset of the observations to use in the grouping. The default
+is NULL, thereby using all observations. Specify, for example, data$hospital == "NY" or c(1:100,200:300) respectively to
+use just those observations.}
+
+\item{asis}{a logical vector that indicates if data will be processed as having only 1 unique observation per 'x' and 'z' combination
+(i.e., this is intended for use with aggregated data). Default is FALSE. This will allow the plot function to graph single observation data for groups
+over time. Only the t distribution is used for the overall trend line and confidence band (works in conjunction with 'ocol' and 'oband').}
+
+\item{dataf}{not currently used, please use 'data' instead.}
 }
 \value{
 list of confidence intervals for outcomes by groups, over time,
@@ -60,19 +73,19 @@ Group level confidence intervals and between-group variation
 }
 \examples{
 #default t distribution results
-group(x="program", y="los", dataf=hosprog)
+group(x="program", y="los", data=hosprog)
 #Rounding LOS to integers
 hp2 <- hosprog; hp2$los2 <- round(hp2$los, 0)
 #Exact Poisson confidence intervals
-group(x="program", y="los2", dataf=hp2, dist="p")
+group(x="program", y="los2", data=hp2, dist="p")
 #Rolling 6-months of data
-group(x="program", y="los", z="month", dataf=hosprog, dist="t", rolling=6)
+group(x="program", y="los", z="month", data=hosprog, dist="t", rolling=6)
 #Data returned separately for rolling 6-months of data and 3-month increments (e.g., quarters)
-group(x="program", y="los", z="month", dataf=hosprog, dist="t", increment=3, rolling=6)
+group(x="program", y="los", z="month", data=hosprog, dist="t", increment=3, rolling=6)
 #Quartile groups for continuous risk score and returned clustering info
-group(x="risk", y="los", dataf=hosprog, quarts=TRUE, cluster=TRUE)
+group(x="risk", y="los", data=hosprog, quarts=TRUE, cluster=TRUE)
 #Binomial distribution with less conservative 90\% confidence intervals
-group(x="risk", y="rdm30", dataf=hosprog, quarts=TRUE, dist="b", conf.int=0.90)
+group(x="risk", y="rdm30", data=hosprog, quarts=TRUE, dist="b", conf.int=0.90)
 }
 \references{
 Merlo, J. (2006). A brief conceptual tutorial of multilevel analysis in

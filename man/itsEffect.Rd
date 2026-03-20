@@ -4,7 +4,7 @@
 \alias{itsEffect}
 \title{Interrupted time series analysis effects}
 \usage{
-itsEffect(model, type)
+itsEffect(model, type, interruptions)
 }
 \arguments{
 \item{model}{an interrupted time series (ITS) model with the "lm" class,}
@@ -13,9 +13,12 @@ itsEffect(model, type)
 time periods. If selected type="sgst", it is single-group single-time;
 type="sgmt", it is single-group multiple-time; type="mgst", it is multiple-group single-time;
 and type="mgmt", it is multiple-group multiple-time.}
+
+\item{interruptions}{ITS number of interruptions as numeric vector greater than 0.}
 }
 \value{
-a data.frame object of ITS effects and summary statistics.
+a data.frame object of ITS effects and summary statistics. Row names are indicated with
+first, second, and additional numbers when there are multiple interruptions (e.g., 'Intervention.2').
 Generally run within the assess function.
 }
 \description{
@@ -32,7 +35,7 @@ generated while running a model in assess.
 \examples{
 i21 <- assess(formula=survey ~ ., data=hosprog, intervention = "program",topcode =NULL,
 int.time="month", regression="none", interrupt=5, its="two", newdata=TRUE, propensity=NULL)
-itsEffect(model= i21$ITS, type= "mgst")
+itsEffect(model= i21$ITS, type= "mgst", interruptions= 1)
 
 }
 \references{

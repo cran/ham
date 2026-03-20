@@ -21,6 +21,8 @@
   xlim = NULL,
   ylim = NULL,
   main = NULL,
+  xlab = NULL,
+  ylab = NULL,
   lwd = 1,
   adj.alpha = 0.4,
   cex = 1,
@@ -31,6 +33,7 @@
   round.c = 2,
   name = FALSE,
   abbrv = 5,
+  roll.x = "Stop",
   ...
 )
 }
@@ -53,11 +56,12 @@
 
 \item{oband}{logical TRUE or FALSE that indicates whether to add an overall confidence band. Default is FALSE.}
 
-\item{tgt}{specify 1 or more values on the x-axis of where to add a target line. Default is NULL.}
+\item{tgt}{specify 1 or more values on the x-axis of where to add a target line when y='group'. Or 1 or more values on the y-axis of where to add a
+target line when y='time' or 'roll'. Default is NULL.}
 
 \item{tcol}{select a color for the target line. Default is 'gray'.}
 
-\item{tpline}{add one or time point vertical line(s) using x-axis values when y='time' or y='roll'. Default is NULL.}
+\item{tpline}{add one or more time point vertical line(s) using x-axis values when y='time' or y='roll'. Default is NULL.}
 
 \item{tpcol}{specify a color for the time point line, tpline. Default is NULL.}
 
@@ -66,6 +70,10 @@
 \item{ylim}{specify plot's y-axis limits with a 2 value vector.}
 
 \item{main}{the main title of the plot.}
+
+\item{xlab}{a vector label for the x-axis.}
+
+\item{ylab}{a vector label for the y-axis.}
 
 \item{lwd}{select the line width. Default is 1.}
 
@@ -81,13 +89,16 @@
 
 \item{cex.text}{The magnification to be used for the text added into the plot relative to the current setting of 1.}
 
-\item{round.c}{an integer indicating the number of decimal places. Default is 2.
-to be used for rounding coefficient values.}
+\item{round.c}{an integer indicating the number of decimal places to be used for rounding values. Default is 2.}
 
 \item{name}{logical TRUE or FALSE that indicates whether group names
 should be added to the 'time' or 'roll' plots. Default is FALSE.}
 
 \item{abbrv}{the minimum length of the abbreviations. Default is 5.}
+
+\item{roll.x}{one of 2 character options to graph rolling average x-axis values as either the 'Start' or 'Stop' of the time period.
+Selecting 'Start' indicates the time point on the x-axis as the first month (e.g., roll=12 will have a graph that starts at 1 on the x-axis).
+The default is 'Stop' (e.g., roll=12 will have a graph that starts at 12 on the x-axis).}
 
 \item{...}{additional arguments.}
 }
@@ -99,7 +110,7 @@ Confidence interval graphs for group class objects
 }
 \examples{
 #Simple graph for confidence intervals using the t-distribution
-gr1 <- group(x="program", y="los", z="month", dataf=hosprog, dist="t",
+gr1 <- group(x="program", y="los", z="month", data=hosprog, dist="t",
 increment=3, rolling=6)
 # Group level confidence intervals
 plot(x=gr1, y="group", order="numeric", lwd=4, gcol= "blue", pcol="red",
@@ -116,4 +127,6 @@ plot(x=gr1, y="roll", lwd=4, gcol=c("red", "blue"), gband=TRUE, overall=TRUE,
   oband=TRUE, ocol="gray", tcol="green", tgt=4, tpline=c(4,6),
   tpcol="yellow", name=TRUE, cex.axis=1, cex.lab=1, cex.text=2,
   cex.main=1.25, adj.alpha=.3)
+
+  # Helpful note: You can plot aggregated data if you used the argument asis=TRUE in group(),
 }
