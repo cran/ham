@@ -26,7 +26,8 @@ denominator for a rate calculated as x/y. Default is NULL.}
 \item{data}{name of data frame object.}
 
 \item{type}{indicate what type of control chart is needed. Options for the X-bar, p-, and u-charts should be listed as
-'x', 'p', and 'u'. Default is the 'x' chart.}
+'x', 'p', and 'u'. The 'u' chart (and p-chart when y is present, e.g., y='denominator') is a ratio of x:y, therefore both
+x and y column names are required. Default is the 'x' chart.}
 
 \item{subset}{an expression defining a subset of the observations to use in the grouping. The default
 is NULL, thereby using all observations. Specify, for example, data$hospital == "NY" or c(1:100,200:300) respectively to
@@ -72,4 +73,7 @@ print(spc_u) # get data frame output
 \references{
 Ryan, T. (2011). Statistical Methods for Quality Improvement, Third Edition.
 New Jersey: John Wiley & Sons, Inc. ISBN: 978-0-470-59074-4.
+}
+\seealso{
+\code{\link[=plot.control]{plot.control()}} for a plot of the 'control' class object.
 }

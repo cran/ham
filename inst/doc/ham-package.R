@@ -29,7 +29,7 @@ print(gr1$Clustering)
 ## ----plotGroup2, fig.dim = c(6, 4.5)------------------------------------------
 plot(x=gr1, y="time", lwd=4, gcol=c("red", "blue"), gband=TRUE, overall=TRUE, oband=TRUE,
      ocol="gray", tgt=4.5, tcol="green", tpline=5, tpcol="yellow", name=TRUE, cex.axis=1,
-     cex.lab=1, cex.text=2, cex.main=1, adj.alpha=.3)
+     cex.lab=1, cex.text=2, cex.main=1, adj.alpha=.3, x.axis=c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
 
 ## ----ols----------------------------------------------------------------------
 # Model summary
@@ -38,6 +38,24 @@ summary(assess(hp ~ mpg+wt, data=mtcars, regression="ols")$model)
 ## ----ols_interpret------------------------------------------------------------
 # Model summary
 interpret(assess(hp ~ mpg+wt, data=mtcars, regression="ols"))$model
+
+## ----lrm----------------------------------------------------------------------
+# Model summary
+summary(assess(am ~ hp+wt, data=mtcars, regression="logistic")$model)
+
+## ----lrm_interpret------------------------------------------------------------
+# Specify how many significant digits with digits argument
+interpret(assess(am ~ hp+wt, data=mtcars, regression="logistic"))$model
+
+## ----pm1----------------------------------------------------------------------
+# Model summary
+summary(assess(HAI ~ Month + offset(log(PatientDays)),
+                data = infections, regression="poisson", link="log")$model)
+
+## ----pm1_interpret------------------------------------------------------------
+# Specify how many significant digits with digits argument
+  interpret(assess(HAI ~ Month + offset(log(PatientDays)),
+                data = infections, regression="poisson", link="log"))$model
 
 ## ----ols topcoding propensity-------------------------------------------------
 m1 <- assess(formula=cost ~ month * program, data=hosprog, intervention = "program",
@@ -50,6 +68,14 @@ summary(m1$model)
 ## ----summary topcoding propensity---------------------------------------------
 summary(m1$newdata[, c( "cost","top.cost", "pscore")])
 
+## ----ols ipw weights----------------------------------------------------------
+ipw1 <- assess(formula=cost ~ month * program, data=hosprog, intervention = "program",
+regression="ols", topcode=17150, propensity=c("female","age","risk"),
+newdata=TRUE, weights="ipw")
+
+## ----ols ipw results----------------------------------------------------------
+summary(ipw1$model)
+
 ## ----importance---------------------------------------------------------------
 importance(m1$model)
 
@@ -58,6 +84,34 @@ importance(m1$model)
 par(mar=c(4.2, 2, 3.5, 3))
 par(oma = c(0, 0, 0, 3))
 plot(importance(m1$model))
+
+## ----plotreview1, fig.dim = c(6, 4.5)-----------------------------------------
+m01 <- lm(mpg ~ wt+hp+am, data=mtcars)
+# Most basic code
+plot(review(m01))
+
+## ----review model 2 results---------------------------------------------------
+m02 <- assess(formula=mpg ~ wt+hp+am, data=mtcars, regression="ols")
+# Using the assess function, notice 'm02$model' object below
+print(review(m02$model), digits=4)
+
+## ----plotreview2, fig.dim = c(6, 4.5)-----------------------------------------
+m02 <- assess(formula=mpg ~ wt+hp+am, data=mtcars, regression="ols")
+plot(x=review(m02$model, increase=c(hp= 83.5)))
+
+## ----plotreview3, fig.dim = c(6, 4.5)-----------------------------------------
+m03 <- glm(vs ~ wt+hp+am, data=mtcars, family="binomial")
+# Display options, sorted plot, and printing the 95% CIs to review
+plot(x=review(m03, increase=c(wt=1.1375, hp= 83.5) ), color="aquamarine", lwd=5,
+pt.cex= 2, tcol="magenta", sort="coef", cex.axis=2, cex.main=2, xlim=c(-.5, 3),
+print=TRUE, round.c=6)
+
+## ----plotreview4, fig.dim = c(6, 4.5)-----------------------------------------
+m04 <- assess(formula=HAI ~  Month+ offset(log(PatientDays)),
+data=infections, regression="poisson")
+#Because 1 year is a meaningful period in program evaluation, Month=12
+plot(x=review(m04$model, increase=c(Month=12)), xlim=c(0.6, 1.01),
+lwd=7, color="cyan", pcol="salmon", pt.cex=2)
 
 ## ----did model 1--------------------------------------------------------------
 dm1 <- assess(formula= los ~ ., data=hosprog, intervention = "program",
@@ -102,9 +156,21 @@ im12 <- assess(formula=los ~ ., data=hosp1, intervention = "program",
 ## ----its model 2 results------------------------------------------------------
 summary(im12$ITS)
 
+## ----its model 2 interpretations----------------------------------------------
+interpret(im12)$its
+
+## ----plotITS02, fig.dim = c(6, 4.5)-------------------------------------------
+plot(im12, "ITS", add.legend="topright", xlim=c(-1, 14), ylim=c(2, 9), main="ITS: Intervention LOS", col=("thistle"), lwd=7, cex=3, cex.axis=2, cex.lab=1.5,  cex.main=3, arrow=TRUE, xshift=c(.25, .25), cex.text=1.0, coefs=TRUE, round.c=2, cfact=T, conf.int=TRUE, adj.alpha=0.2, pos.text= list("Intercept"=1, "txp5"=3, "post5"=3, "post9"=3), cex.legend=1.25, add.means=TRUE )
+
 ## ----its model 3--------------------------------------------------------------
 im22 <- assess(formula=los ~ ., data=hosprog, intervention = "program",
                int.time="month", interrupt= c(5, 9), its="two")
+
+## ----plotreview5, fig.dim = c(6, 4.5)-----------------------------------------
+im22 <- assess(formula=los ~ ., data=hosprog, intervention = "program",
+int.time="month", interrupt= c(5, 9), its="two")
+# The intervention group had the biggest change between the baseline and month 5
+plot(review(im22$ITS), sort="coef", decreasing=TRUE, main="ITS review", color="red", pcol="green", lwd=2, pt.cex=1.5)
 
 ## ----its model 3 results------------------------------------------------------
 summary(im22$ITS)
@@ -113,17 +179,24 @@ summary(im22$ITS)
 interpret(im22)$its
 
 ## ----plotAssess, fig.dim = c(6, 4.5)------------------------------------------
-plot(im22, "ITS", add.legend="top", xlim=c(-.75, 13.1), ylim=c(2, 9), 
+plot(im22, "ITS", add.legend="top", xlim=c(-.75, 13.1), ylim=c(2, 9),
      main="ITS: Length of Stay", col=c("springgreen","thistle"), lwd=7, cex=2, cex.axis=2,
      cex.lab=1.5,  cex.main=3, cex.legend=1.25, arrow=TRUE, xshift=c(0, .5), cex.text=1,
-     coefs=TRUE, round.c=1, pos.text= list("txp5"=3, "post9"=4), tcol="dodgerblue",
-     conf.int=TRUE, adj.alpha=0.3, add.means=TRUE)
+     coefs=TRUE, round.c=1, pos.text= list("Intercept"=1, "txp5"=3, "post5"=3, "post9"=3),
+     tcol="dodgerblue", conf.int=TRUE, adj.alpha=0.3, add.means=TRUE)
 
 ## ----its model 4--------------------------------------------------------------
 id22 <- assess(formula=death30 ~ ., data=hosprog, intervention = "program", int.time="month", interrupt= c(5, 9), its="two")
 
 ## ----its model 4 results------------------------------------------------------
 summary(id22$ITS)
+
+## ----its model 4 interpretations----------------------------------------------
+interpret(id22)$its
+
+## ----plotITS04, fig.dim = c(6, 4.5)-------------------------------------------
+plot(id22, "ITS",  xlim=c(-1, 14), ylim=c(0, .37), main="ITS: 30-day Death", col=c("sienna3","slategray"), lwd=3, cex=2, cex.axis=2, cex.lab=1.5, tcol="green", cex.main=3, arrow=TRUE, xshift=c(.25, .25), cex.text=1.0, coefs=TRUE, round.c=2, cfact=T, conf.int=TRUE, adj.alpha=0.15, pos.text= list("Intercept"=1, "txp5"=3, "txi"=2, "post5"=3, "post9"=4, "ITS.Time"=3), 
+     cex.legend=.9, add.means=TRUE )
 
 ## ----its model 5--------------------------------------------------------------
 #Key interruption periods

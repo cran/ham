@@ -25,6 +25,10 @@ plot(blos1, y="dxg", parameter="muOfY")
 ## ----plotdx4, fig.dim = c(6, 4.5)---------------------------------------------
 plot(blos1, y="dxt", parameter="muOfY")
 
+## ----Diagnostics1-------------------------------------------------------------
+blos2 <- Bayes(losmcmc, y="Dx", parameter="muOfY")
+interpret(blos2$Diagnostics, digits=5)
+
 ## ----Post1--------------------------------------------------------------------
 blos1 <- Bayes(x=losmcmc, y="post", parameter="muOfY", newdata=TRUE)
 print(blos1$Posterior.Summary)
@@ -66,20 +70,22 @@ cex= 2, cex.main=1.25, cex.axis=.75, cex.legend=1.5, X.Lab=NULL)
 
 ## ----plotMulti2, fig.dim = c(6, 4.5)------------------------------------------
 plot(x=co2multi, y="multi", level=3, aorder=FALSE, lcol="blue", pcol= c("green", "pink"),
-round.c=1, bcol="lavender", xlim=c(-.1, 1), legend=NULL, add.legend="right", lwd=3,
-cex.lab =1.2, cex= 2, cex.main=1.25, cex.axis=.75, cex.legend=1.5, X.Lab=NULL)
+round.c=1, bcol="lavender", xlim=c(-.1, 1), legend=NULL, add.legend="bottomleft", lwd=3, cex.lab =1.2, cex= 2, cex.main=1.25, cex.axis=.75, cex.legend=1.25, X.Lab=NULL)
 
 ## ----Target1------------------------------------------------------------------
 btarget1 <- Bayes(x=losmcmc, y="target", type="n", parameter=c("muOfY","sigmaOfY"),
-newdata=TRUE, target=list(p=c(.35,.4,.45, .5, .55),  y=c(3,4))) 
+newdata=TRUE, targets=list(p=c(.35,.4,.45, .5, .55),  y=c(3,4), e= list(a=c(.35,.4,.45), b=.5))) 
 print(btarget1$Target)
+
+## ----Interpret Target1--------------------------------------------------------
+interpret(btarget1$Target, digits=3)
 
 ## ----plotTarget2, fig.dim = c(7.5, 4.5)---------------------------------------
 plot(x=btarget1, y="target", type="n", data=hosprog, dv="los", breaks=30,
-cex.axis=1.3, lwd=2, pline=20, vlim=c(-1, 12), xlim=c(-1, 10),
+cex.axis=1.3, lwd=1.5, pline=20, vlim=c(1, 12), xlim=c(1, 9),
 parameter=c("muOfY","sigmaOfY"), add.legend="right", main="Length of Stay",
-cex.main=1.5, xpt=5, pcol="black", lcol="cyan", tgtcol="blue", bcol="orange",
-cex.legend=1.25, cex.text = 1)
+cex.main=1.5, xpt=5, pcol="black", lcol="salmon", tgtcol="blue", bcol="gray90",
+cex.legend=1.25, cex.text = 1.5)
 
 ## ----plotTarget1, fig.dim = c(6, 4.5)-----------------------------------------
 plot(x=btarget1, y="target", type="n", lcol="purple", tgtcol="blue", xlim=c(3.5, 5))

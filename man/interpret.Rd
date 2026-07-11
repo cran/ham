@@ -4,20 +4,25 @@
 \alias{interpret}
 \title{Interpret model output}
 \usage{
-interpret(object)
+interpret(object, digits = NULL)
 }
 \arguments{
-\item{object}{alpha and assess class objects: alpha, ITS, DID, linear (ols) or logistic models.}
+\item{object}{alpha, assess, and Bayes class objects: alpha, ITS, DID, linear (ols) or logistic models,
+and Dx and target (Bayes diagnostics and target setting).}
+
+\item{digits}{a non-null value for digits specifies the minimum number of significant digits
+to be printed in values. The default, NULL, uses 3. Non-integer values will be rounded down,
+and only values greater than or equal to 1 and no greater than 22 are accepted.}
 }
 \value{
-a list with interpretations of Cronbach's alpha scales or regression model results.
+a list with interpretations of Cronbach's alpha scales, regression model results, or MCMC diagnostics.
 }
 \description{
-Provides simple interpretations of regression coefficients and Cronbach's
-alpha from assess and alpha function classes. The interpretations describe
-coefficients and significance values as well as modifying item scales.
-The interpretations are text comments associated with specific parameters
-of the various analyses.
+Provides simple interpretations of regression coefficients, Cronbach's
+alpha, and Bayesian Markov Chain Monte Carlo diagnostics from assess, alpha, and
+Bayes function classes. The interpretations describe coefficients and significance
+values as well as modifying item scales. The interpretations are text comments associated
+with specific parameters of the various analyses.
 }
 \examples{
 # Interpret Cronbach's alpha
@@ -36,4 +41,13 @@ interpret(hos2)$did  #interpret(hos2) also runs, returns ITS results if present
 hos3 <- assess(formula=survey ~ ., data=hosprog, intervention = "program",
 int.time="month", its="two", interrupt = 5)
 interpret(hos3)$its
+
+# interpret Bayesian MCMC diagnostics
+blos1 <- Bayes(losmcmc, y="Dx", parameter="muOfY")
+interpret(blos1$Diagnostics, digits=5)
+
+}
+\seealso{
+\code{\link[=print.interpret]{print.interpret()}}, \code{\link[=itsEffect]{itsEffect()}} for formatted interpret print classes such as
+Interrupted Time Series effects calculated for 'Summary 1', 'Summary 2', etc.
 }

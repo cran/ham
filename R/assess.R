@@ -13,9 +13,9 @@
 #' Y ~ Post.All + Int.Var + DID). If regression=ols or regression=logistic, 'Y ~ .'
 #' will use all variables in the data.frame as is standard in formulas.
 #' @param data a data.frame in which to interpret the variables named in the formula.
-#' @param regression Select a regression method for standard regression models
-#' (i.e., neither DID nor ITS). Options are regression="ols" (ordinary least squares AKA linear)
-#' or regression="logistic". Default is regression="none" for no standard regression model.
+#' @param regression Select a regression method for standard regression models (i.e., neither
+#' DID nor ITS). Options are regression="ols" (ordinary least squares AKA linear), regression="logistic",
+#' or regression='poisson'. Default is regression="none" for no standard regression model.
 #' @param did option for Differences-in-Differences (DID) regression. Select did="two" for
 #' models with only 2 time points (e.g., pre/post-test). Select did="many" for >= 3 time points
 #' (e.g., monthly time points in 12 months of data). Default is did="none" for no DID.
@@ -23,7 +23,8 @@
 #' group (e.g., intervention only). Select its="two" for two groups (intervention and control).
 #' Default is did="none" for no ITS.
 #' @param intervention optional intervention variable name selected for DID, ITS, and propensity score
-#' models that indicate which cases are in the intervention or not.
+#' models that indicate which cases are in the intervention or not when propensity is a character class
+#' (i.e., intervention can be NULL when propensity is a formula class for a non-DID or non-ITS model).
 #' @param int.time optional intervention time variable name selected for DID or ITS models. This
 #' indicates the duration of time relative to when the intervention started.
 #' @param treatment optional treatment start period variable name selected for DID models.
@@ -50,18 +51,39 @@
 #' Default is NULL.
 #' @param topcode optional value selected to top code Y (or left-hand side) of the formula. Analyses
 #' will be performed using the new top coded variable.
-#' @param propensity optional character vector of variable names to perform a propensity score model.
-#' This requires the 'intervention' option to be selected. All models will include 'pscore' (propensity
-#' score) in the analysis as a covariate adjustment using the propensity score.
+#' @param propensity optional character vector of variable names or formula class to perform a propensity
+#' score model. This requires the 'intervention' option to be selected only when using a character vector.
+#' All models will include 'pscore' (propensity score) in the analysis as a covariate adjustment using
+#' the propensity score unless one of the weights options 'ipw' (Inverse Probability Weights for the ATE,
+#' Average Treatment Effect, estimator), 'nipw' (Normalized Inverse Probability Weights by Hajek estimator),
+#' or 'att' (Average Treatment Effect on the Treated) is selected for the analysis.
+#' @param trim an optional two-element numeric vector that sets limits between 0 and 1 for the
+#' propensity score. If NULL, the default values of >= 0 and <= 1 are used (i.e., c(0,1)).
+#' @param weights an optional 1-element character vector of the data frame column name or character
+#' vector of either 'ipw', 'nipw', or 'att' for Inverse Probability of Treatment Weighting Using the
+#' propensity score (see 'propensity' above) to be used in the fitting process. Should be NULL or a
+#' character vector. If non-NULL, weighting is used with weights; otherwise standard regression is used.
+#' Weights calculated as ipw: treatment= 1/pscore, control= 1/(1-pscore); nipw: treatment= ipw / sum of
+#' treatment ipw, control= ipw / sum of control ipw; att: treatment= 1; control= pscore/(1-pscore).
+#' @param offset an optional 1-element character vector of the data frame column name to be used with the
+#' predictor during fitting. One or more offset terms can be included in the formula instead. offset is
+#' often used in for rates in Poisson models. Can only use the data frame column name, cannot transform
+#' the column directly in this argument. If transformations are needed, instead either do so in the formula
+#' call (e.g., 'y ~ x1 + offset(log(x2))') or transform the data directly in the data frame.
 #' @param newdata optional logical value that indicates if you want the new data returned. newdata=TRUE
 #' will return the data with any new columns created from the DID, ITS, propensity score, or top coding.
 #' The default is newdata=FALSE. No new data will be returned if none was created.
-#'
+#' @param link a description of the link function to be used in the glm model.
+#' This can be a character string naming a link. The 'binomial' family link options are the 'logit' (default),
+#' 'probit', 'cauchit', (corresponding to 'logistic', 'normal' and 'Cauchy' CDFs respectively) 'log' and
+#' 'cloglog' (complementary log-log); and the 'poisson' family links 'log' (default), 'identity', and 'sqrt'.
 #'
 #' @return a list of results from selected regression models. Will return new data if selected.
 #' And returns relevant model information such as variable names, type of analysis, formula, study
 #' information, and summary of ITS effects if analyzed.
 #' @export
+#'
+#' @seealso [plot.assess()], [interpret()] for a plot and interpretation of the 'assess' class object.
 #'
 #' @references
 #' Angrist, J. D., & Pischke, J. S. (2009). Mostly Harmless Econometrics:
@@ -71,8 +93,17 @@
 #' and Control of Infection in Healthcare. Epidemiology & Infections, 140, 2131–2141.
 #' https://doi.org/10.1017/S0950268812000179
 #'
+#' Gelman, A. & Hill, J. (2007). Data Analysis Using Regression and Multilevel/Hierarchical Models.
+#' Cambridge University Press. ISBN: 978-0-521-68689-1.
+#'
+#' Imbens, G. & Rubin, D. (2015). Causal Inference for Statistics, Social, and Biomedical Sciences:
+#' An Introduction. Cambridge University Press. ISBN: 978-0-521-88588-1.
+#'
 #' Linden, A. (2015). Conducting Interrupted Time-series Analysis for Single- and
 #' Multiple-group Comparisons. The Stata Journal, 15, 2, 480-500. https://doi.org/10.1177/1536867X1501500208
+#'
+#' Rosenbaum, P. (2010). Design of Observational Studies, Second Edition. New York: Springer.
+#' ISBN: 978-1-4419-1212-1.
 #'
 #' @examples
 #' # ordinary least squares R^2
@@ -106,10 +137,11 @@
 #' summary(assess(formula=los ~ ., data=hosprog, intervention = "program",
 #' int.time="month", its="two", interrupt = c(5,9))$ITS)
 #'
-#' @importFrom stats as.formula binomial plogis predict update aggregate
+#' @importFrom stats as.formula binomial plogis predict update aggregate poisson
 assess <- function(formula, data, regression= "none", did ="none", its ="none",
-                   intervention =NULL, int.time=NULL, treatment=NULL,interrupt=NULL, subset=NULL,
-                   stagger= NULL, topcode =NULL, propensity =NULL, newdata =FALSE) {
+                   intervention =NULL, int.time=NULL, treatment=NULL,interrupt=NULL,
+                   subset=NULL, stagger= NULL, topcode =NULL, propensity =NULL, trim=NULL,
+                   weights=NULL,offset=NULL, newdata =FALSE, link=NULL) {
   # Use various formulas for the different models
   primary_formula <- formula
   #Get formula variables
@@ -134,7 +166,7 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   }
 
   main_data_vars <- colnames(data)
-  newdata_vars <- c("Post.All", "Period", "DID","DID.Trend","Int.Var","pscore")
+  newdata_vars <- c("Post.All", "Period", "DID","DID.Trend","Int.Var","pscore", "ipw", "nipw","att")
   dup_vars <- intersect(main_data_vars, newdata_vars)
   name_stop_fnc <-paste0("Error: Duplicated column name(s): ", paste(dup_vars, collapse = ", "),
                          ". Rename variables, these are reserved for function purposes.")
@@ -176,7 +208,7 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
 
   # Propensity score model #
   # Proper propensity score arguments
-  if(!is.null(propensity)) {
+  if (all(class(propensity) == "character") == TRUE) {
     if(is.null(intervention)) {
       stop("Error: 'intervention=NULL'. Need intervention name for propensity scores.")
     }
@@ -189,27 +221,121 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
       }
     }
   }
+#Make sure weights is a character class
+  if(!is.null(weights)) {
+    if (all(class(weights) == "character") == FALSE) {
+    stop("Error: Expecting weights argument as a character class vector.")
+  }
+}
+  if(!is.null(trim)) {
+    if(length(trim) != 2) {
+    stop("Error: Expecting trim argument to have exactly 2 elements.")
+    }
+  }
 
-  # Creates propensity score model formula
-  if(!is.null(propensity)) {
+  #Make the weights argument a different name
+    ## Weight object ##
+    if(!is.null(weights)) {
+      wght_obj_var <- weights
+    } else {
+      wght_obj_var <- NULL
+    }
+  ## offset object ##
+  if(!is.null(offset)) {
+    offst_obj_var <- offset
+  } else {
+    offst_obj_var <- NULL
+  }
+  ## link object ##
+  if(!is.null(link)) {
+    family_link <- link
+  }
+  if(is.null(link)) {
+    if(regression == "logistic") {
+    family_link <- "logit"
+    }
+    if(regression == "poisson") {
+      family_link <- "log"
+    }
+  }
+
+  # Creates propensity score model formula based on variable names
+  if (all(class(propensity) == "character") == TRUE) {
     prop_mdl_fmla <- as.formula(paste(paste0(intervention , "~"),
                                       paste(propensity, collapse= "+")))
-  } else {
+  }
+  #Creates propensity score model formula when I enter the model formula directly
+  if (all(class(propensity) == "formula") == TRUE) {
+    prop_mdl_fmla <- propensity
+  }
+  #When propensity is NULL
+  if(is.null(propensity)) {
     prop_mdl_fmla <- NULL
   }
+  #Create an object for the intervention variable name
+  if(!is.null(propensity)) {
+    prop_mdl_y <- as.character(prop_mdl_fmla[[2]])
+  }
+
+  #Stop if intervention variable name and propensity model Y are different
+  if (!is.null(propensity) && !is.null(intervention)) {
+    if(prop_mdl_y != intervention) {
+      stop("Error: Expecting intervention argument equal to propensity model Y.")
+    }
+  }
+
+  # Create propensity score model
   if(!is.null(propensity)) {
     propensity_model <- stats::glm(prop_mdl_fmla, family=binomial(link='logit'), data=data)
     pscore <- plogis(predict(propensity_model, newdata= data))
   }
-  if(!is.null(propensity)) {
-    # Add variables to model formula
-    if(xyvar[2] != ".") {
-      primary_formula <- update(primary_formula, paste("~ . +", "pscore"))
-    } else {
-      primary_formula <- update(primary_formula, paste("~  +", "pscore"))
-    }
+  #Trim propensity scores to thresholds
+  if(!is.null(trim)) {
+    trim <- sort(trim)
+    pscore[pscore <= trim[1]] <- trim[1]
+    pscore[pscore >= trim[2]] <- trim[2]
   }
 
+  ##############################################
+  ## Inverse probability of treatment weights ##
+  ##############################################
+  # Create for weighted regression
+  if(!is.null(propensity)) {
+  ipw <- rep(NA, nrow(data))
+  ipw <- ifelse(data[, prop_mdl_y] == 1, 1/pscore[data[, prop_mdl_y] == 1 ],
+                1 / (1 - pscore[data[, prop_mdl_y] == 0 ]))
+
+  #Normalized IPW weights
+  nipw <- rep(NA, nrow(data))
+  nipw <- ifelse(data[, prop_mdl_y] == 1, ipw[data[, prop_mdl_y] == 1] / sum(ipw[data[, prop_mdl_y] == 1], na.rm=TRUE),
+                 ipw[data[, prop_mdl_y] == 0] / sum(ipw[data[, prop_mdl_y] == 0], na.rm=TRUE))
+
+  #ATT weights
+  att <- rep(NA, nrow(data))
+  att <- ifelse(data[, prop_mdl_y] == 1, 1,
+                pscore[data[, prop_mdl_y] == 0] / (1 - pscore[data[, prop_mdl_y] == 0]))
+  }
+
+  # Add covariates to model formula when there are no weights
+  if (is.null(weights)) {
+    if(!is.null(propensity)) {
+      if(xyvar[2] != ".") {
+        primary_formula <- update(primary_formula, paste("~ . +", "pscore"))
+      } else {
+        primary_formula <- update(primary_formula, paste("~  +", "pscore"))
+      }
+    }
+  }
+  # Add covariates to model formula when there are weights
+  if (!is.null(weights) && !weights %in% c("ipw", "nipw", "att")) {
+    if(!is.null(propensity)) {
+      if(xyvar[2] != ".") {
+        primary_formula <- update(primary_formula, paste("~ . +", "pscore"))
+      } else {
+        primary_formula <- update(primary_formula, paste("~  +", "pscore"))
+      }
+    }
+  }
   #Data frames to make later
   did_data <- NULL
   its_data <- NULL
@@ -217,12 +343,12 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   top_data <- NULL
 
   #Proper regression arguments
-  if (!regression %in% c("none","ols","logistic")) {
-    stop("Error: 'regression='. Only select 'none', 'ols','logistic'.")
+  if (!regression %in% c("none","ols","logistic", "poisson")) {
+    stop("Error: 'regression='. Only select 'none', 'ols', 'logistic', 'poisson'.")
   }
-  if(regression %in% c("ols","logistic")) {
+  if(regression %in% c("ols","logistic", "poisson")) {
     if(any(c(did,its) != "none")) {
-      stop("Error: regression= ols or logistic. Does not run concurrently with did or its.")
+      stop("Error: regression= ols, logistic, or poisson. Does not run concurrently with did or its.")
     }
   }
   #Proper DID arguments
@@ -717,7 +843,14 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   # Add variables to model formula
   if(!is.null(topcode)) {
     if(!is.null(propensity)) {
-      primary_formula <- update(primary_formula, paste(new_topcode_yvar_name, "~ . +", "pscore"))
+      if(is.null(weights)) {
+        primary_formula <- update(primary_formula, paste(new_topcode_yvar_name, "~ . +", "pscore"))
+      }
+      if (!is.null(weights) && weights %in% c("ipw", "nipw", "att")) {
+        primary_formula <- update(primary_formula, paste(new_topcode_yvar_name, "~ . "))
+      } else {
+        primary_formula <- update(primary_formula, paste(new_topcode_yvar_name, "~ . +", "pscore"))
+      }
     }
     if(is.null(propensity)) {
       if(xvar[1] == ".") {
@@ -729,7 +862,8 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   }
   # Propenisty score data #
   if(!is.null(propensity)) {
-    prop_data <- pscore
+#    prop_data <- pscore
+    prop_data <- data.frame(pscore, ipw, nipw, att)
   }
   # Makes propensity score NULL if not done so formula is ok in DID regression
   if(!is.null(propensity)) {
@@ -741,7 +875,8 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   ## Create newdata object ##
   # Range of new data includes: "did","its","propensity", "top code"
   if (any(additional_data) == TRUE) {
-    newdata_list <- list(data, did_data, its_data, topy_var=top_data, pscore=prop_data)
+#    newdata_list <- list(data, did_data, its_data, topy_var=top_data, pscore=prop_data)
+    newdata_list <- list(data, did_data, its_data, topy_var=top_data, prop_data)
     combined_df <- do.call(cbind, newdata_list[!sapply(newdata_list, is.null)])
     colnames(combined_df)[which(colnames(combined_df) =="topy_var")] <- new_topcode_yvar_name
   } else {
@@ -761,13 +896,32 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
     new_df <- NULL
   }
 
+  ## Weight object ##
+  if(!is.null(weights)) {
+    wght_obj <- combined_df[, wght_obj_var]
+  } else {
+    wght_obj <- NULL
+  }
+  ## offset object ##
+  if(!is.null(offset)) {
+    offst_obj <- combined_df[, offst_obj_var]
+  } else {
+    offst_obj <- NULL
+  }
+
   # Regressions #
+  #Put model formula into the environment because weights won't run without
+  environment(primary_formula) <- environment()
+
   #Standard covariate adjustment
   if(regression == "ols") {
-    model_1 <- stats::lm(formula= primary_formula, data=combined_df)
+    model_1 <- stats::lm(formula= primary_formula, data=combined_df, weights = wght_obj, offset=offst_obj)
   }
   if(regression == "logistic") {
-    model_1 <- stats::glm(formula= primary_formula, family=binomial(link='logit'), data=combined_df)
+    model_1 <- stats::glm(formula= primary_formula, family=binomial(link=family_link), data=combined_df, weights = wght_obj, offset=offst_obj)
+  }
+  if(regression == "poisson") {
+    model_1 <- stats::glm(formula= primary_formula, family=poisson(link=family_link), data=combined_df, weights = wght_obj, offset=offst_obj)
   }
 
   # DID models # additional_data c(create_did, create_its, create_topcode, create_propensity)
@@ -798,7 +952,7 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
     model_1 <- NULL
   }
   if (create_did == TRUE) {
-    did_model <- stats::lm(formula=DID_formula , data=combined_df)
+    did_model <- stats::lm(formula=DID_formula , data=combined_df, weights = wght_obj, offset=offst_obj)
   } else {
     did_model <- NULL
   }
@@ -819,7 +973,7 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   }
   # Finishes model
   if (create_its == TRUE) {
-    its_model <- stats::lm(formula=ITS_formula , data=combined_df)
+    its_model <- stats::lm(formula=ITS_formula , data=combined_df, weights = wght_obj, offset=offst_obj)
   } else {
     its_model <- NULL
   }
@@ -844,6 +998,11 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
   }
   if (create_did == TRUE) {
     attributes(DID_formula) <- NULL
+  }
+  #Create new primary formula and remove attributes
+  if (!is.null(primary_formula)) {
+    primary_formul2 <- primary_formula
+    environment(primary_formul2) <- globalenv()
   }
 
   # Calculate group means per time period #
@@ -910,10 +1069,11 @@ assess <- function(formula, data, regression= "none", did ="none", its ="none",
 
   z <- list(model=model_1, DID=did_model, DID.Names=DID.Names, ITS=its_model,
             ITS.Effects=ITS.Effects,ITS.Names=ITS.Names, newdata=new_df,
-            formula=list(primary_formula=primary_formula,
+            formula=list(primary_formula= primary_formul2,
                          propensity_formula=propensity_formula,
                          DID_formula=DID_formula,
-                         ITS_formula=ITS_formula),
+                         ITS_formula=ITS_formula,
+                         weights= wght_obj_var),
             analysis_type=list(regression_type=regression_type,
                                did_type=did_type, itsa_type=itsa_type),
             study= list(regression=regression, did=did, its=its, intervention=intervention,

@@ -34,6 +34,8 @@
   name = FALSE,
   abbrv = 5,
   roll.x = "Stop",
+  x.axis = NULL,
+  y.axis = NULL,
   ...
 )
 }
@@ -100,6 +102,17 @@ should be added to the 'time' or 'roll' plots. Default is FALSE.}
 Selecting 'Start' indicates the time point on the x-axis as the first month (e.g., roll=12 will have a graph that starts at 1 on the x-axis).
 The default is 'Stop' (e.g., roll=12 will have a graph that starts at 12 on the x-axis).}
 
+\item{x.axis}{a vector of unique character or numeric values that makes up x-axis values to
+replace the time variable values. For use only when y="time" or y="roll". This will be most helpful if you prefer
+current calendar months/years instead of values starting at 1 (e.g., x.axis= sort(unique(data$Year)) for 1900-1999,
+not 1-100). Must have equal lengths for unique x.axis values and replaced values (i.e., nrow(x)). Default is NULL.}
+
+\item{y.axis}{a vector of unique character or numeric values that makes up y-axis values to replace
+the outcome variable values. For use only when y="time" or y="roll". This will be most helpful if your outcome
+needs to be converted such as rate per 1,000 patient days. The values are spaced equally between the minimum lower
+confidence interval and maximum upper confidence interval when either y="time" or y="roll", equal to length(y.axis).
+Review x$Time.CI$Group or x$Roll.CI$Rolling.All to view ranges. Default is NULL.}
+
 \item{...}{additional arguments.}
 }
 \value{
@@ -129,4 +142,7 @@ plot(x=gr1, y="roll", lwd=4, gcol=c("red", "blue"), gband=TRUE, overall=TRUE,
   cex.main=1.25, adj.alpha=.3)
 
   # Helpful note: You can plot aggregated data if you used the argument asis=TRUE in group(),
+}
+\seealso{
+\code{\link[=group]{group()}} for the 'group' class object.
 }

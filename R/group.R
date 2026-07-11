@@ -36,6 +36,9 @@
 #' and clustering measures. Some values returned in alphabetical and numerical order based on the group.
 #' @importFrom stats aov complete.cases na.omit poisson.test qnorm quantile sd binom.test
 #' @export
+#'
+#' @seealso [plot.group()] for a plot of the 'group' class object.
+#'
 #' @references
 #' Merlo, J. (2006). A brief conceptual tutorial of multilevel analysis in
 #' social epidemiology: using measures of clustering in multilevel logistic
@@ -429,9 +432,9 @@ group <- function(x, y, z=NULL, data, dist="t", conf.int=0.95, increment=1,
   # Rolling time #
   fncRollTime <- function(data, x, y, z, Increment, dist="t", conf_lev=.95) {
     #Get summary of values
-    Time.Period.Length <- length(unique(data[, z]))
+    Time.Period.Length <- length(na.omit(unique(data[, z])))
     Increment.Length <- Time.Period.Length - (Increment - 1)
-    Time.Period.Values <- unique(data[, z])
+    Time.Period.Values <- na.omit(unique(data[, z]))
     oTPV <- order(Time.Period.Values)
     Time.Period.Values <- Time.Period.Values[oTPV]
     #Get time periods for aggregating rates
@@ -490,7 +493,7 @@ group <- function(x, y, z=NULL, data, dist="t", conf.int=0.95, increment=1,
     ms_bw <- anova_results[[1]]$"Mean Sq"[1]
     ms_wn <- anova_results[[1]]$"Mean Sq"[2]
     # number of observations per group
-    k <- length(unique(data[, x]))
+    k <- length(na.omit(unique(data[, x])))
     #Average number per cluster
     kn <- mean(table(data[, x]))
 

@@ -39,4 +39,11 @@ hos3 <- assess(formula=survey ~ ., data=hosprog, intervention = "program",
 int.time="month", its="two", interrupt = 5)
 interpret(hos3)$its
 
+# interpret Bayesian MCMC diagnostics
+blos1 <- Bayes(losmcmc, y="Dx", parameter="muOfY")
+interpret(blos1$Diagnostics, digits=5)
+
+}
+\seealso{
+\code{\link[=interpret]{interpret()}} for the 'interpret' class object.
 }

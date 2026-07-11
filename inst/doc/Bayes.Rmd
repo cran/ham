@@ -34,7 +34,7 @@ MCMC chains created in the coda package (e.g., through JAGS or Stan with a class
 
 The following sections will introduce the various commands in Bayes and plot.Bayes. We'll review it in terms of a common focus in health care, hospital length of stay (LOS).
 
-If you are interested in Bayesian analysis and what like to learn more, I highly recommend John Kruschke's book, "Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and Stan, Second Edition" as an excellent source of knowledge with comprehensive sections on putting the analysis into practice.
+If you are interested in Bayesian analysis and would like to learn more, I highly recommend John Kruschke's book, "Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and Stan, Second Edition" as an excellent source of knowledge with comprehensive sections on putting the analysis into practice.
 
 <br>
 
@@ -54,19 +54,21 @@ The 'y' argument allows us to ouput results with these options--
 
 * r2: Calculates Gelman's R^2 (see documentation).
 
+* Dx: MCMC diagnostics from the autocorrelation factor, effective sample size, Monte Carlo standard error, and Gelman-Rubin statistic (shrink factor).
+
 * mcmc: Returns the MCMC converted into a data frame which is required for all graphing options except when y= 'multi', Bayes() pre-processes the 'multi' output so no new new data is required. You can get your MCMC by specifying newdata=TRUE within Bayes().
 
 ## plot.Bayes()
 
 There are similar plot options found in the 'y' argument.
 
-* post: Graphs a posterior distibution or curve for a parameter in the MCMC.
+* post: Graphs a posterior distribution or curve for a parameter in the MCMC.
 
-* dxa: Graphs MCMC diagnostics for the autocorrelation factor.
+* dxa: Graphs MCMC diagnostics for the autocorrelation factor and effective sample size.
 
-* dxd: Graphs MCMC diagnostics for density plots of convergence.
+* dxd: Graphs MCMC diagnostics for density plots of convergence such as the Monte Carlo standard error.
 
-* dxg: Graphs MCMC diagnostics for the Gelman-Rubin statistic.
+* dxg: Graphs MCMC diagnostics for the Gelman-Rubin statistic (shrink factor).
 
 * dxt: Graphs MCMC diagnostics for traceplots.
 
@@ -80,7 +82,7 @@ This vignette will go in order of the sections in plot.Bayes since almost everyt
 
 # 2. Diagnostics: 'dxa', 'dxd', 'dxg', 'dxt'
 
-This will first create a Bayes object (because y='mcmc' by default) from a list of MCMC simulations. And we'll modify it later but for now, this produces an object we can start reviewing.
+We have 2 options in reviewing diagnostics: 1) with graphs or 2) assessing the statistics. This code will first create a Bayes object that we can produce our graphs (because y='mcmc' by default) from a list of MCMC simulations. And we'll modify it later but for now, this produces an object we can start reviewing.
 
 ```{r Post0}
 blos1 <- Bayes(x=losmcmc)
@@ -121,13 +123,29 @@ plot(blos1, y="dxt", parameter="muOfY")
 
 A review of the diagnostics suggest that the model ran well.
 
+### interpretations
+The graphs are very helpful for reviewing the diagnostics but the interpretations are helpful in reviewing what information we gain from conducting the MCMC diagnostics. There are 3 types of information in the interpretation output.
+
+* 1. General overview of the MCMC representativeness, accuracy, and efficiency.
+
+* 2. Gelman-Rubin, ACF, ESS, and MCSE statistics about your parameter.
+
+* 3. Additional background information.
+
+For example, here's a review of the blos1 object:
+
+```{r Diagnostics1}
+blos2 <- Bayes(losmcmc, y="Dx", parameter="muOfY")
+interpret(blos2$Diagnostics, digits=5)
+```
+
 <br>
 
 # 3. Posterior summary: 'post' 
 
 Posterior estimates of length of stay. First set up the Bayes object to convert the chains. We need, newdata=TRUE, to produce a graph later from our new MCMC data frame.
 
-This already uses the bare minimum code that will run and provide newdata to graph later. 
+This uses the bare minimum code that will run and provide newdata to graph later. 
 
 ```{r Post1}
 blos1 <- Bayes(x=losmcmc, y="post", parameter="muOfY", newdata=TRUE)
@@ -229,15 +247,20 @@ And now the level 3 plot (observation in plants in Treatment by type groups). Yo
 
 ```{r plotMulti2, fig.dim = c(6, 4.5)}
 plot(x=co2multi, y="multi", level=3, aorder=FALSE, lcol="blue", pcol= c("green", "pink"),
-round.c=1, bcol="lavender", xlim=c(-.1, 1), legend=NULL, add.legend="right", lwd=3,
-cex.lab =1.2, cex= 2, cex.main=1.25, cex.axis=.75, cex.legend=1.5, X.Lab=NULL)
+round.c=1, bcol="lavender", xlim=c(-.1, 1), legend=NULL, add.legend="bottomleft", lwd=3, cex.lab =1.2, cex= 2, cex.main=1.25, cex.axis=.75, cex.legend=1.25, X.Lab=NULL)
 ```
 
 <br>
 
 # 6. Target setting: 'target'
 
-Our administrators ask how far are we from our goals, they ask about future targets in increments of 5 points of probability or specific days. We answer both.
+Our administrators ask how far are we from our goals, they ask about future targets in increments of 5 points of probability or specific days. We can answer both.
+
+The cumulative distribution function (CDF) can be defined for any distribution of a random variable X whether continuous, discrete, or neither. If you can define or calculate the CDF of X them, by using the rules of probability, you can find the probability of any event determined by X (Probability by Pitman, 1993, p. 311). 
+
+The Bayes function will generate a distribution for each target value within the elements 'p', 'y', and if applicable, will return the mean of the beta distribution. If you think of a distribution of mass instead of probability the mean is the center of gravity. Think of a histogram of the normal distribution as a shape cut from a rigid material of constant thickness and density. The mean value is then a balance point for the histogram, you can place your finger below the mean and the shape would be balanced (Probability by Pitman, 1993, p. 162).
+
+In other words, we can use our MCMC estimate with shape parameters to calculate the CDF and inverse CDF to determine the probability of the distribution lower than a certain value and the X value associated with a specific percentile. We can then use this to assist with the target setting process. Or if we simply wanted to calculate those values or interval of values, y='target' will help.  
 
 We first find the point in the distribution that represents the appropriate center or 'average'. A good reference point is the 50th percentile which has equal probability above and below that point (i.e., where chances are '50/50' or 'fair'). 
 
@@ -245,16 +268,29 @@ Below is the full set of results for each target, use 'newdata=TRUE' for future 
 
 ```{r Target1}
 btarget1 <- Bayes(x=losmcmc, y="target", type="n", parameter=c("muOfY","sigmaOfY"),
-newdata=TRUE, target=list(p=c(.35,.4,.45, .5, .55),  y=c(3,4))) 
+newdata=TRUE, targets=list(p=c(.35,.4,.45, .5, .55),  y=c(3,4), e= list(a=c(.35,.4,.45), b=.5))) 
 print(btarget1$Target)
 ```
 
 We can now review the results to identify targets that represent increments of 5 points of probability. This potentially may requires another 5 points of effort to achieve, however moving around a rate in the middle is generally easier than moving to rates that are in the extremes (e.g., 0% infections). Using Jacob Cohen's effect sizes can help in that understanding. Notice "High.Low.Interval", represents the proportion under the curve of the highest and lowest value for y, here 4-3= 1 day. 
 
-Here is the bare minimum code that will run (if we want to print, newdata=TRUE is needed):
+We can review these results better by getting the interpretations.
 
+```{r Interpret Target1}
+interpret(btarget1$Target, digits=3)
+```
+
+We know a good place to start when setting targets is at a probability of 0.50. But how do we know where to suggest an alternative target? We can use Cohen's h effect size to understand what is a small, medium, or large effect size (0.20, 0.50, 0.80). These values can be generated with a 2 element list as e= list(a=c(.35,.4,.45), b= .5). This code will calculate effect sizes between 0.35 and 0.50, 0.40 and 0.50, 0.45 and 0.50. Cohen's h is a statistic that is independent of sample size and adjusted for the differences relative to 0.50 as well as the extremes of 0 and 1. 
+
+For example, the raw difference of 0.10 between potential targets of 0.50 and 0.40 results in a Cohen's h effect size of 0.20, representing a small effect size. Some stakeholders may argue that the alternative target of 0.40 is too big of change while others may argue it is too small (i.e., context is important). If we have an intervention program that is well documented in reducing length of stay, setting a target that would represent a small effect size could be a good option. But if we have no programs in place to improve length of stay, setting targets at a level that is less than a small effect, could be a fair and realistic option. For the former option, set the target to around the 40th percentile at 3.92 and for the latter option, set the target to around the 45th percentile at 4.18, based on the interpretations. 
+
+For the administrators who like "round numbers", we see in our output that setting a target of 4 days would represent a Cohen's h effect size that would be less than a small effect so this mayb be a helpful alternative. Another thing to consider is how difficult some outcomes are to move. Cohen's effect sizes are based on "average" types of situations so we should consider that as well as how difficult it is to improve outcomes and how effective the programs (or predictors) are. 
+
+Notice that in the interpretations, the estimated mean of the X values from the beta distribution has NA. Because this model didn't use a beta distribution likelihood (i.e., type="n"), this estimate doesn't apply to these target statistics.
+
+Here is the bare minimum code that will run (if we want to print, newdata=TRUE is needed; displaying default)
 btarget1 <- Bayes(x=losmcmc, y="target", type="n", parameter=c("muOfY","sigmaOfY"),
-target=list(p=c(.35,.4,.45, .5, .55),  y=c(3,4)))
+targets=list(p=c(.35,.4,.45, .5, .55),  y=c(3,4)))
 
 <br>
 
@@ -262,15 +298,15 @@ Target graph using a posterior predictive check, more intuitive.
 
 ```{r plotTarget2, fig.dim = c(7.5, 4.5)}
 plot(x=btarget1, y="target", type="n", data=hosprog, dv="los", breaks=30,
-cex.axis=1.3, lwd=2, pline=20, vlim=c(-1, 12), xlim=c(-1, 10),
+cex.axis=1.3, lwd=1.5, pline=20, vlim=c(1, 12), xlim=c(1, 9),
 parameter=c("muOfY","sigmaOfY"), add.legend="right", main="Length of Stay",
-cex.main=1.5, xpt=5, pcol="black", lcol="cyan", tgtcol="blue", bcol="orange",
-cex.legend=1.25, cex.text = 1)
+cex.main=1.5, xpt=5, pcol="black", lcol="salmon", tgtcol="blue", bcol="gray90",
+cex.legend=1.25, cex.text = 1.5)
 ```
 
 <br>
 
-Target graph using the basic option of placing a target over a specific parameter. In this case overlaying the info on the estimate of mode parameter to show it relates to the center.
+Target graph using the basic option of placing a target over a specific parameter. In this case overlaying the info on the estimate of mode parameter to show how it relates to the center.
 
 ```{r plotTarget1, fig.dim = c(6, 4.5)}
 plot(x=btarget1, y="target", type="n", lcol="purple", tgtcol="blue", xlim=c(3.5, 5))

@@ -25,13 +25,15 @@ Bayes(
 \item{x}{list object of multiple MCMC chains (e.g., matrix class list elements or coda mcmc.list).}
 
 \item{y}{character vector for the type of analysis or output to perform. Select 'post', 'multi', 'target', 'r2', or 'mcmc' for a
-posterior summary, multilevel/hierarchical model summary (up to 3 levels), target summary, Gelman R-squared statistic, or
-list object of MCMC chains converted into a data frame. Default is generic 'mcmc'(no analysis, just MCMC creation).}
+posterior summary, multilevel/hierarchical model summary (up to 3 levels), target summary, Gelman R-squared statistic,
+MCMC diagnostics, or list object of MCMC chains converted into a data frame. For MCMC diagnostics, select y='Dx' to get the
+auto-correlation factor, effective sample size, Monte Carlo standard error, and Gelman-Rubin shrink factor. Default is generic
+'mcmc'(no analysis, just MCMC creation).}
 
 \item{parameter}{single or multiple element character vector name of parameter(s) in MCMC chains to produce summary statistics.
 When y='target', use the generally 2 to 3 parameters that represent the distribution parameters (e.g., parameter= c('mean', 'sd')).
 When y='r2', use the regression parameters in order, ending with the residual or level-1 variance (e.g., parameter= c('intercept',
-'beta1', 'beta2', 'standard_deviation')). Default is NULL.}
+'beta1', 'beta2', 'standard_deviation')). For MCMC diagnostics (i.e., y='Dx'), select only 1 parameter at a time. Default is NULL.}
 
 \item{mass}{numeric vector that specifies the credible mass used in the Highest Density Interval (HDI). Default is 0.95.}
 
@@ -72,32 +74,40 @@ data frames when  y='multi'. This variable is the denominator that can be used t
 numerator/denominator. For example, when the 'numerator' column equals 4 and the 'denominator' column equals 10, then this
 single row of data is expanded to 10 rows with four values of 1 and six values of 0 when expand='denominator'. Default is NULL.}
 
-\item{targets}{list of one or two named elements (p, y) with numeric values that represent quantile values (p) in the distribution
-to return associated outcome values and/or specific outcome values (y) to retrieve associated probabilities. For example, a
-distribution of harmful hospital readmission rates has an estimated median value of 0.25. Staff are considering 2 types of targets,
-percentiles (p) of key interest and specific outcome rates (y). They want to know the readmission rate that is at
-the 40th percentile for a reduced readmission rate (below what is 'average' at the 50th percentile) and the probability greater
-than a readmission rate of 0.20. They get this information by entering targets=list(p=0.40, y=0.20); calculating 1 - prob(y)
-from returned results gives them an idea about the effort needed to meet this target of a reduced readmission rate.
+\item{targets}{allows probabilities and percentiles to be calculated from a list of one, two, or three named elements ('p', 'y', 'e')
+with numeric values that represent quantile or percentile values between 0 and 1 (p) in the distribution to return associated outcome
+values (i.e., inverse cumulative distribution function), specific outcome values (y) to retrieve associated probabilities less than Y
+(i.e., cumulative distribution function), and/or a 2 element list (named 'a' and 'b') of low and high proportions (no particular
+order) that Cohen's h effect sizes ('e') for proportions are calculated from it (i.e., not Bayesian analysis) to give us an idea
+of how large differences in targets are (e.g., target 0.50 vs target 0.40 = Cohen's h of 0.201 = 'small effect'--0.2, 0.5, 0.8 as
+thresholds for small, medium, and large effect sizes). For example, a distribution of harmful hospital readmission rates has an
+estimated median value of 0.25. Staff are considering 2 types of targets, percentiles (p) of key interest and specific outcome
+rates (y). They want to know the readmission rate that is at the 40th percentile for a reduced readmission rate (below what is
+'average' at the 50th percentile) and the probability greater than a readmission rate of 0.20. They get this information by
+entering targets=list(p=0.40, y=0.20, e=list(0.50, 0.40)); considering prob(y) from the returned results gives them an idea
+about the effort needed to meet this target of a reduced readmission rate. And as they are searching for a shift in targets
+as a 'small effect', but substantial, the Cohen's h effect size of 0.20 indicates that this is met when comparing targets of
+0.50 vs 0.40. For list elements 'p' and 'y, selecting 2 values will result in the intervals between the values in the form of
+the object 'High.Low.Interval'. When there are more than 2 listed values, the interval is between the lowest and highest values.
 Select type= one of these options: 'n', 'ln', 'w', 'g', 't', 'bern', 'bin'. Also select parameter= the appropriate center, spread,
-and possible 3rd shape distribution parameter (e.g., parameter=c('mean', 'sd')). And option to select center= 'mean',
-'median', 'mode'. Default is NULL.}
+and possible 3rd shape distribution parameter (e.g., parameter=c('mean', 'sd')). And option to select center= 'mean', 'median',
+'mode'. Default is NULL.}
 }
 \value{
 data frame of summary statistics for the MCMC parameter's distribution and/or MCMC data frame.
 Statistics include highest density interval, effective sample size, proportion of distribution
 within and outside of a ROPE, distribution compared with a set value, and the parameter's mean,
-median, and mode. And distribution summaries for multilevel models, target summaries, and
-regression model R2.
+median, and mode. And distribution summaries for multilevel models, target summaries, regression model
+R2, and MCMC diagnostics.
 }
 \description{
 Convert a list of Bayesian analysis chains (e.g., coda package mcmc.list objects) into a data frame
 for analysis and creating plots. For example, models from JAGS or Stan that were converted into
 coda class objects can be used to create the data frames. Calculates a set of descriptive statistics
 that summarize MCMC parameters. And values can be calculated for use in descriptive graphs such as
-values associated with specific percentiles and vice-versa to help set targets, summaries on
-hierarchical or multilevel models (up to 3 levels), and the R2 for Bayesian regression models with
-metric level predictors.
+values associated with specific percentiles and vice-versa to help set targets, MCMC diagnostics,
+summaries on hierarchical or multilevel models (up to 3 levels), and the R2 for Bayesian regression
+models with metric level predictors.
 }
 \examples{
 # Posterior estimates of length of stay (LOS) #
@@ -115,7 +125,8 @@ print(blos1$Posterior.Summary) #looks like LOS is substantially higher than 3 da
 # Our administrators ask how far are we from our goals, they ask about targets
 # in increments of 5 points of probability or specific days. We answer both.
 btarget1 <- Bayes(x=losmcmc, y="target", type="n", parameter=c("muOfY","sigmaOfY"),
-newdata=TRUE, target=list(p=c(.35,.4,.45, .5, .55),  y=c(3,4))) # 'newdata' for plots
+newdata=TRUE, target=list(p=c(.35,.4,.45, .5, .55),  y=c(3,4),
+e= list(a=c(.35,.4,.45), b= c(.5, .5, .5)) )) # 'newdata' for plots
 print(btarget1$Target$Est.Quantile.P)  # 5-point increments
 print(btarget1$Target$Est.Prob.GT.Y)   # specific day values, 4 days is plausible
 
@@ -128,6 +139,15 @@ print(bR2$R2.Summary$R2)                   # R^2
 print(bR2$R2.Summary$Variance.Pred.Y)      # Variance of predicted outcome
 print(bR2$R2.Summary$Variance.Residuals)   # Variance of residuals
 print(head(bR2$R2.Summary$yPRED))          # Predicted outcomes
+
+# MCMC diagnostics--we'll check chain representativeness and accuracy
+bDx <- Bayes(losmcmc, y="Dx", parameter="muOfY")
+#average ACF for lags 1-37 across 4 chains
+print(rowMeans(bDx$Diagnostics$Auto.Correlation.Factor[-1, -1])) #ACF
+print(bDx$Diagnostics$Effective.Sample.Size)           #ESS
+print(bDx$Diagnostics$Monte.Carlo.Standard.Error)      #MCSE
+#Gelman-Rubin statistic (shrink factor) across various iterations of the chains
+print(bDx$Diagnostics$Shrink.Factor)                   #Shrink
 }
 \references{
 Cohen, J. (1988). Statistical Power Analysis for the Behavioral Sciences, Second Edition.
@@ -139,4 +159,9 @@ https://doi.org/10.1080/00031305.2018.1549100
 
 Kruschke, J. (2014). Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and
 Stan, Second Edition. New York: Academic Press. ISBN: 9780124058880
+
+Pitman, J. (1993). Probability. Springer-Verlag. ISBN: 978-0-387-97974-8
+}
+\seealso{
+\code{\link[=plot.Bayes]{plot.Bayes()}}, \code{\link[=interpret]{interpret()}} for a plot and interpretation of the 'Bayes' class object.
 }
